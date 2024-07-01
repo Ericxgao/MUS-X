@@ -759,14 +759,15 @@ struct Synth : Module {
 
 	void onReset(const ResetEvent& e) override
 	{
-		activeSourceAssign = 0;
-		oscMixRouteActive = false;
-		memset(mixFilterBalances, 0.f, nMixChannels * sizeof(float));
-		memset(modMatrix, 0.f, nDestinations*nSources * sizeof(float));
-
-		Module::onReset(e);
-
-		// TODO set default values
+		// reset only modulation assignments when activeSourceAssign
+		for (size_t iDest = 0; iDest < nDestinations; iDest++)
+		{
+			modMatrix[iDest][activeSourceAssign] = 0.f;
+		}
+		if (activeSourceAssign == 0)
+		{
+			Module::onReset(e); // TODO need sensible default parameters!
+		}
 
 		configureUi();
 	}
@@ -782,6 +783,8 @@ struct Synth : Module {
 		float mixButtonValue = getParam(OSC_MIX_ROUTE_PARAM).getValue();
 
 		Module::onRandomize(e);
+
+		// TODO randomize only modulatable params when activeSourceAssign
 
 		for (size_t i = 0; i < ENV1_A_PARAM; i++)
 		{
@@ -952,9 +955,9 @@ struct Synth : Module {
 							modMatrixOutputs[iDest][c/4] += modMatrix[iDest][iSource] * modMatrixInputs[iSource][c/4];
 						}
 					}
-//					std::cerr << modMatrixOutputs[iDest][c/4][0] << "\t";
+//					std::cerr << modMatrixOutputs[iDest][c/4][0] << "\t"; // TODO remove
 				}
-//				std::cerr << "\n";
+//				std::cerr << "\n"; // TODO remove
 
 				// calculate further values
 				float_4 noiseAmp = clamp(modMatrixOutputs[OSC_NOISE_VOL_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f);
@@ -982,6 +985,8 @@ struct Synth : Module {
 				env2[c/4].setSustainLevel(0.1f * modMatrixOutputs[ENV2_S_PARAM - ENV1_A_PARAM][c/4]);
 				env2[c/4].setReleaseTime(0.1f * modMatrixOutputs[ENV2_R_PARAM - ENV1_A_PARAM][c/4]);
 
+				// TODO LFOs, drift
+
 				outputs[INDIVIDUAL_MOD_1_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_1_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_2_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_2_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_3_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_3_PARAM - ENV1_A_PARAM][c/4], c);
@@ -992,6 +997,7 @@ struct Synth : Module {
 						modMatrixOutputs[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f +
 						modMatrixOutputs[OSC1_TUNE_FINE_PARAM - ENV1_A_PARAM][c/4] / 5.f / 12.f;
 
+				// TODO fingered glide? glide only on V/Oct?
 				glide1[c/4].setCutoffFreq(getGlideFreq(modMatrixOutputs[OSC1_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4], args.sampleRate));
 				osc1FreqVOct = glide1[c/4].processLowpass(osc1FreqVOct);
 				oscillators[c/4].setOsc1FreqVOct(osc1FreqVOct);
@@ -1379,7 +1385,9 @@ struct SynthWidget : ModuleWidget {
 			}
 		));
 
-		// latch buttons
+		// TODO
+		// filter 1/2 integrator type
+		// filter solver
 	}
 };
 

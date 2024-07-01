@@ -8,6 +8,7 @@ using simd::int32_4;
 
 class LFOBlock {
 private:
+	int sampleRate = 48000;
 	int sampleRateReduction = 1;
 
 	float_4 rand4 = {0.f};
@@ -39,9 +40,19 @@ public:
 		return labels;
 	}
 
+	void setRand(float rnd)
+	{
+		rand4 = rnd;
+	}
+
 	void setRand(float_4 rnd)
 	{
 		rand4 = rnd;
+	}
+
+	void setSampleRate(int s)
+	{
+		sampleRate = s;
 	}
 
 	void setSampleRateReduction(int s)
@@ -55,7 +66,7 @@ public:
 	}
 
 	// 0V = 2Hz
-	void setFrequencyVOct(float_4 f, int sampleRate)
+	void setFrequencyVOct(float_4 f)
 	{
 		float_4 freq = 2. * dsp::exp2_taylor5(f);
 		phaseInc = INT32_MAX / sampleRate * freq * sampleRateReduction;
@@ -63,7 +74,7 @@ public:
 
 	void setAmp(float_4 a)
 	{
-		amp = clamp(a, 0.f, 12.f);
+		amp = clamp(a, 0.f, 10.f);
 	}
 
 	void setReset(float_4 rst)

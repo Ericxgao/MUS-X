@@ -3,6 +3,7 @@
 
 #include "blocks/ADSRBlock.hpp"
 #include "blocks/FilterBlock.hpp"
+#include "blocks/LFOBlock.hpp"
 #include "blocks/OscillatorsBlock.hpp"
 
 #include "dsp/decimator.hpp"
@@ -222,11 +223,16 @@ struct Synth : Module {
 	musx::ADSRBlock env1[4] = {musx::ADSRBlock(MIN_TIME, MAX_TIME, ATT_TARGET)};
 	musx::ADSRBlock env2[4] = {musx::ADSRBlock(MIN_TIME, MAX_TIME, ATT_TARGET)};
 
+	musx::LFOBlock lfo1[4];
+	musx::LFOBlock lfo2[4];
+	musx::LFOBlock globalLfo;
+
 	// audio blocks
 	musx::TOnePoleZDF<float_4> glide1[4];
 	musx::TOnePoleZDF<float_4> glide2[4];
 	musx::OscillatorsBlock<maxOversamplingRate> oscillators[4];
 
+	float_4 noise = {0.f};
 	float_4 noiseVol1[4] = {0.f};
 	float_4 noiseVol2[4] = {0.f};
 
@@ -255,9 +261,9 @@ struct Synth : Module {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		configParam(ENV1_VEL_PARAM, 0.f, 1.f, 0.f, "Envelope 1 velocity scaling", " %", 0, 100);
 		configParam(ENV2_VEL_PARAM, 0.f, 1.f, 0.f, "Envelope 2 velocity scaling", " %", 0, 100);
-		configParam(LFO1_SHAPE_PARAM, 0.f, 1.f, 0.f, "LFO 1 shape");
+		configSwitch(LFO1_SHAPE_PARAM, 0, LFOBlock::getShapeLabels().size() - 1, 0, "LFO 1 shape", LFOBlock::getShapeLabels());
 		configSwitch(LFO1_MODE_PARAM, 0, 2, 0, "LFO 1 mode", {"free running", "retrigger", "retrigger, single cycle"});
-		configParam(LFO2_SHAPE_PARAM, 0.f, 1.f, 0.f, "LFO 2 shape");
+		configSwitch(LFO2_SHAPE_PARAM, 0, LFOBlock::getShapeLabels().size() - 1, 0, "LFO 2 shape", LFOBlock::getShapeLabels());
 		configSwitch(LFO2_MODE_PARAM, 0, 2, 0, "LFO 2 mode", {"free running", "retrigger", "retrigger, single cycle"});
 		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.f, "Drift rate", " Hz");
 		configParam(DRIFT_BALANCE_PARAM, -1.f, 1.f, 0.f, "Random constant offset / drift balance", " %", 100.);
@@ -736,7 +742,10 @@ struct Synth : Module {
 		sampleRate = e.sampleRate;
 		for (int c = 0; c < 16; c += 4) {
 			oscillators[c/4].setSampleRate(sampleRate);
+			lfo1[c/4].setSampleRate(sampleRate);
+			lfo2[c/4].setSampleRate(sampleRate);
 		}
+		globalLfo.setSampleRate(sampleRate);
 		setOversamplingRate(oversamplingRate);
 	}
 
@@ -755,6 +764,18 @@ struct Synth : Module {
 
 			decimator.reset();
 		}
+	}
+
+	void setModSampleRateReduction(size_t arg)
+	{
+		modSampleRateReduction = arg;
+		modDivider.setDivision(modSampleRateReduction);
+
+		for (int c = 0; c < 16; c += 4) {
+			lfo1[c/4].setSampleRateReduction(modSampleRateReduction);
+			lfo2[c/4].setSampleRateReduction(modSampleRateReduction);
+		}
+		globalLfo.setSampleRateReduction(modSampleRateReduction);
 	}
 
 	void onReset(const ResetEvent& e) override
@@ -903,6 +924,9 @@ struct Synth : Module {
 				env1[c/4].setVelocityScaling(getParam(ENV1_VEL_PARAM).getValue());
 				env2[c/4].setVelocityScaling(getParam(ENV2_VEL_PARAM).getValue());
 
+				lfo1[c/4].setShape(getParam(LFO1_SHAPE_PARAM).getValue());
+				lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
+
 				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
 
 				filter1[c/4].setMode(getParam(FILTER1_MODE_PARAM).getValue());
@@ -932,6 +956,15 @@ struct Synth : Module {
 				env2[c/4].setRetrigger(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
 				env2[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV2_ASSIGN_PARAM + 1][c/4] = env2[c/4].process(args.sampleTime * modDivider.getDivision());
+
+				lfo1[c/4].process();
+				modMatrixInputs[LFO1_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getUnipolar();
+				modMatrixInputs[LFO1_BIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getBipolar();
+
+				lfo2[c/4].process();
+				modMatrixInputs[LFO2_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getUnipolar();
+				modMatrixInputs[LFO2_BIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getBipolar();
+
 				// TODO
 
 				// matrix multiplication
@@ -985,7 +1018,15 @@ struct Synth : Module {
 				env2[c/4].setSustainLevel(0.1f * modMatrixOutputs[ENV2_S_PARAM - ENV1_A_PARAM][c/4]);
 				env2[c/4].setReleaseTime(0.1f * modMatrixOutputs[ENV2_R_PARAM - ENV1_A_PARAM][c/4]);
 
-				// TODO LFOs, drift
+				lfo1[c/4].setRand(noise[0]);
+				lfo1[c/4].setFrequencyVOct(modMatrixOutputs[LFO1_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+				lfo1[c/4].setAmp(modMatrixOutputs[LFO1_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
+
+				lfo2[c/4].setRand(noise[1]);
+				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+				lfo2[c/4].setAmp(modMatrixOutputs[LFO2_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
+
+				// TODO global LFO, drift
 
 				outputs[INDIVIDUAL_MOD_1_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_1_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_2_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_2_PARAM - ENV1_A_PARAM][c/4], c);
@@ -1059,7 +1100,7 @@ struct Synth : Module {
 			oscillators[c/4].processBandlimited(buffer1, buffer2);
 
 			// noise
-			float_4 noise = random::normal();
+			noise = random::normal();
 			float_4 extIn = inputs[EXT_INPUT].getPolyVoltageSimd<float_4>(c);
 			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
 			{
@@ -1380,8 +1421,7 @@ struct SynthWidget : ModuleWidget {
 				return log2((int)module->modSampleRateReduction);
 			},
 			[=](int mode) {
-				module->modSampleRateReduction = std::pow(2, mode);
-				module->modDivider.setDivision(module->modSampleRateReduction);
+				module->setModSampleRateReduction(std::pow(2, mode));
 			}
 		));
 

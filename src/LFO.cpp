@@ -38,7 +38,7 @@ struct LFO : Module {
 
 	LFO() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configSwitch(SHAPE_PARAM, 0.f, 7.f, 0.f, "Shape", LFOBlock::getShapeLabels());
+		configSwitch(SHAPE_PARAM, 0.f, LFOBlock::getShapeLabels().size() - 1, 0.f, "Shape", LFOBlock::getShapeLabels());
 		getParamQuantity(SHAPE_PARAM)->snapEnabled = true;
 		configParam(FREQ_PARAM, -octaveRange, octaveRange, 0.f, "Frequency", " Hz", 2., 2.);
 		configParam(AMP_PARAM, 0.f, 5.f, 5.f, "Amplitude", " V");
@@ -47,6 +47,14 @@ struct LFO : Module {
 		configInput(AMP_INPUT, "Amplitude CV");
 		configInput(RESET_INPUT, "Reset trigger");
 		configOutput(OUT_OUTPUT, "LFO");
+	}
+
+	void onSampleRateChange(const SampleRateChangeEvent& e) override
+	{
+		for (int c = 0; c < 16; c += 4)
+		{
+			lfoBlock[c/4].setSampleRate(e.sampleRate);
+		}
 	}
 
 	void setSampleRateReduction(int arg)
@@ -80,7 +88,7 @@ struct LFO : Module {
 
 				lfoBlock[c/4].setRand(rand4);
 				lfoBlock[c/4].setShape(params[SHAPE_PARAM].getValue());
-				lfoBlock[c/4].setFrequencyVOct(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c), args.sampleRate);
+				lfoBlock[c/4].setFrequencyVOct(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c));
 				lfoBlock[c/4].setAmp(params[AMP_PARAM].getValue() + inputs[AMP_INPUT].getPolyVoltageSimd<float_4>(c));
 				lfoBlock[c/4].setReset(params[RESET_PARAM].getValue() + inputs[RESET_INPUT].getPolyVoltageSimd<float_4>(c));
 

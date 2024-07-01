@@ -4,8 +4,6 @@
 namespace musx {
 
 using namespace rack;
-using simd::float_4;
-using simd::int32_4;
 
 struct LFO : Module {
 	enum ParamId {
@@ -82,7 +80,7 @@ struct LFO : Module {
 
 				lfoBlock[c/4].setRand(rand4);
 				lfoBlock[c/4].setShape(params[SHAPE_PARAM].getValue());
-				lfoBlock[c/4].setFrequency(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c), args.sampleRate);
+				lfoBlock[c/4].setFrequencyVOct(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c), args.sampleRate);
 				lfoBlock[c/4].setAmp(params[AMP_PARAM].getValue() + inputs[AMP_INPUT].getPolyVoltageSimd<float_4>(c));
 				lfoBlock[c/4].setReset(params[RESET_PARAM].getValue() + inputs[RESET_INPUT].getPolyVoltageSimd<float_4>(c));
 

@@ -8,11 +8,6 @@ using simd::int32_4;
 
 class LFOBlock {
 private:
-	const int octaveRange = 10;
-	const float minFreq = 2 * std::pow(2, -octaveRange); // Hz
-	const float maxFreq = 2 * std::pow(2,  octaveRange); // Hz
-	const float logMaxOverMin = std::log(maxFreq/minFreq); // log(maxFreq/minFreq)
-
 	int sampleRateReduction = 1;
 
 	float_4 rand4 = {0.f};
@@ -59,8 +54,8 @@ public:
 		shape = s;
 	}
 
-	// f = -10..10
-	void setFrequency(float_4 f, int sampleRate)
+	// 0V = 2Hz
+	void setFrequencyVOct(float_4 f, int sampleRate)
 	{
 		float_4 freq = 2. * dsp::exp2_taylor5(f);
 		phaseInc = INT32_MAX / sampleRate * freq * sampleRateReduction;
@@ -75,6 +70,11 @@ public:
 	{
 		phasor = simd::ifelse(rst > reset + 0.5, -INT32_MAX, phasor);
 		reset = rst;
+	}
+
+	void resetPhases()
+	{
+		phasor = -INT32_MAX;
 	}
 
 	void process()
@@ -127,6 +127,8 @@ public:
 				phasor += phaseInc;
 				wave = 2./3.26 * (simd::sin((float_4)(phasor/INT32_MAX)*M_PI) - simd::sin((float_4)(2*phasor/INT32_MAX)*M_PI + 0.4 * M_PI)) - 0.22;
 				break;
+			default:
+				wave = 0.f;
 		}
 	}
 

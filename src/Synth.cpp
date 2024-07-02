@@ -575,9 +575,9 @@ struct Synth : Module {
 				if (ENV1_A_PARAM + i == FILTER2_CUTOFF_PARAM && filter2CutoffMode)
 				{
 					// bipolar
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 5.f,
 							destinationLabel,
-							" %", 0, 20.f); // TODO proper unit label ?
+							" %", 0, 20.f, -100.f); // TODO proper unit label ?
 					param->bipolar = true;
 				}
 
@@ -1160,20 +1160,23 @@ struct Synth : Module {
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
-					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) - 5.f;
+					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
 					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 					break;
 				case 2: // space
-					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
 					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
-					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
 					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,

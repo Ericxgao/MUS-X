@@ -252,6 +252,7 @@ struct Synth : Module {
 	musx::AntialiasedCheapSaturator<float_4> saturator1[4];
 	float_4 delayBuffer1[4][maxOversamplingRate] = {0.f};
 
+	int filter2CutoffMode = 0;
 	float_4 delayBuffer2[4][maxOversamplingRate] = {0.f};
 	musx::TOnePole<float_4> dcBlocker2[4];
 	musx::AliasReductionFilter<float_4> aliasFilter2[4];
@@ -469,6 +470,7 @@ struct Synth : Module {
 
 		for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
 		{
+			// config knobs when source assign is active
 			if (activeSourceAssign)
 			{
 				std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
@@ -525,6 +527,7 @@ struct Synth : Module {
 				param->bipolar = true;
 				param->color = SCHEME_BLUE;
 			}
+			// config knobs when source assign is off
 			else
 			{
 				std::string destinationLabel = destinationLabels[i];
@@ -566,6 +569,15 @@ struct Synth : Module {
 					param->bipolar = false;
 				}
 
+				if (ENV1_A_PARAM + i == FILTER2_CUTOFF_PARAM && filter2CutoffMode)
+				{
+					// bipolar
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+							destinationLabel,
+							" %", 0, 20.f); // TODO proper unit label ?
+					param->bipolar = true;
+				}
+
 				param->color = SCHEME_GREEN;
 				param->indicator = mustCalculateDestination[i];
 				param->indicatorColor = SCHEME_BLUE;
@@ -589,6 +601,7 @@ struct Synth : Module {
 		{
 			if (oscMixRouteActive)
 			{
+				// config mix route knobs when source assign is active
 				if (activeSourceAssign)
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
@@ -600,6 +613,7 @@ struct Synth : Module {
 					param->bipolar = true;
 					param->color = SCHEME_PURPLE;
 				}
+				// config mix route knobs when source assign is off
 				else
 				{
 					std::string destinationLabel = destinationLabels[i];
@@ -629,6 +643,7 @@ struct Synth : Module {
 			}
 			else
 			{
+				// config mix volume knobs when source assign is active
 				if (activeSourceAssign)
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
@@ -640,6 +655,7 @@ struct Synth : Module {
 					param->bipolar = true;
 					param->color = SCHEME_BLUE;
 				}
+				// config mix volume knobs when source assign is off
 				else
 				{
 					std::string destinationLabel = destinationLabels[i];
@@ -858,10 +874,13 @@ struct Synth : Module {
 
 			// adapt UI if activeSourceAssign or oscMixRouteActive have changed
 			bool reconfigureUi = false;
-			if (activeSourceAssign != newActiveSourceAssign || oscMixRouteActive != newOscMixRouteActive)
+			if (activeSourceAssign != newActiveSourceAssign ||
+					oscMixRouteActive != newOscMixRouteActive ||
+					filter2CutoffMode != (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue())
 			{
 				activeSourceAssign = newActiveSourceAssign;
 				oscMixRouteActive = newOscMixRouteActive;
+				filter2CutoffMode = (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue();
 				reconfigureUi = true;
 				configureUi();
 			}
@@ -1004,7 +1023,7 @@ struct Synth : Module {
 
 				modMatrixInputs[GLOBAL_LFO_ASSIGN_PARAM + 1][c/4] = clamp(modMatrixOutputs[GLOBAL_LFO_AMT_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f) * globalLfoOut;
 
-				// TODO
+				// TODO drift
 
 				// matrix multiplication
 				for (size_t iDest = 0; iDest < nDestinations; iDest++)
@@ -1106,20 +1125,52 @@ struct Synth : Module {
 				oscillators[c/4].setRingmodVol(0.1f * modMatrixOutputs[OSC_RM_VOL_PARAM - ENV1_A_PARAM][c/4]);
 				oscillators[c/4].setRingmodPan(0.2f * modMatrixOutputs[OSC_RM_VOL_PARAM + nMixChannels - ENV1_A_PARAM][c/4]);
 
-				float_4 filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-				filterFrequency  = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
-				filter1[c/4].setCutoffFrequencyAndResonance(
-						filterFrequency,
-						0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
-				// TODO cutoff mode
-				filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-								filterFrequency  = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
-				filter2[c/4].setCutoffFrequencyAndResonance(
-						filterFrequency,
-						0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+				// cutoff mode
+				float_4 filterFrequency;
+				switch ((int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue())
+				{
+				case 0: // individual
+					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter1[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
-				// TODO
+					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter2[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+					break;
+				case 1: // offset
+					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter1[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+
+					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter2[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+					break;
+				case 2: // space
+					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter1[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+
+					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filter2[c/4].setCutoffFrequencyAndResonance(
+							filterFrequency,
+							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
+				}
+
+				// TODO delay
 			}
 		}
 

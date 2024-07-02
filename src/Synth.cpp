@@ -115,6 +115,7 @@ struct Synth : Module {
 
 		OSC1_TUNE_OCT_PARAM,
 		OSC2_TUNE_OCT_PARAM,
+		OSC_TUNE_GLIDE_FINGERED_PARAM,
 		OSC_MIX_ROUTE_PARAM,
 		OSC_SYNC_PARAM,
 
@@ -175,7 +176,7 @@ struct Synth : Module {
 
 		// mix route light
 		OSC_MIX_ROUTE_LIGHT,
-
+		OSC_TUNE_GLIDE_FINGERED_LIGHT,
 		OSC_SYNC_LIGHT,
 
 		LIGHTS_LEN
@@ -216,6 +217,7 @@ struct Synth : Module {
 	bool mustCalculateDestination[nDestinations] = {false}; // false if all but the first entry of the mod matrix column are 0
 
 	// modulation blocks
+	float_4 lastGate[4] = {0.f};
 	float_4 lastTrigger[4] = {0.f};
 
 	static constexpr float MIN_TIME = 1e-3f;
@@ -276,6 +278,7 @@ struct Synth : Module {
 		configParam(OSC2_TUNE_OCT_PARAM, -4, 4, 0, "Oscillator 2 octave");
 		getParamQuantity(OSC2_TUNE_OCT_PARAM)->snapEnabled = true;
 		getParamQuantity(OSC2_TUNE_OCT_PARAM)->smoothEnabled = false;
+		configSwitch(OSC_TUNE_GLIDE_FINGERED_PARAM, 0,   1,   0,  "Fingered glide", {"Off", "On"});
 		configSwitch(OSC_SYNC_PARAM, 0,   1,   0,  "Sync", {"Off", "Sync oscillator 2 to oscillator 1"});
 		configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"});
 		configSwitch(FILTER1_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 1 mode", FilterBlock::getModeLabels());
@@ -970,7 +973,8 @@ struct Synth : Module {
 			globalLfo.setFrequencyVOct(getParam(GLOBAL_LFO_FREQ_PARAM).getValue());
 
 
-			// sync light
+			// lights
+			lights[OSC_TUNE_GLIDE_FINGERED_LIGHT].setBrightness(getParam(OSC_TUNE_GLIDE_FINGERED_PARAM).getValue());
 			lights[OSC_SYNC_LIGHT].setBrightness(getParam(OSC_SYNC_PARAM).getValue());
 		}
 
@@ -987,27 +991,26 @@ struct Synth : Module {
 					modMatrixInputs[iInput + 1][c/4] = inputs[iInput].getPolyVoltageSimd<float_4>(c);
 				}
 
-				float_4 trigger = inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c);
+				float_4 triggerInput = inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c);
 				float_4 rnd = {rack::random::uniform(), rack::random::uniform(), rack::random::uniform(), rack::random::uniform()};
-				modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4] = ifelse(trigger > lastTrigger[c/4] + 0.5f,
+				modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4] = ifelse(triggerInput > lastTrigger[c/4] + 0.5f,
 						(10.f * rnd) - 5.f,
 						modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4]);
-				lastTrigger[c/4] = trigger;
 
 				// process modulation blocks
 				env1[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env1[c/4].setRetrigger(trigger);
+				env1[c/4].setRetrigger(triggerInput);
 				env1[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV1_ASSIGN_PARAM + 1][c/4] = env1[c/4].process(args.sampleTime * modDivider.getDivision());
 
 				env2[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env2[c/4].setRetrigger(trigger);
+				env2[c/4].setRetrigger(triggerInput);
 				env2[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV2_ASSIGN_PARAM + 1][c/4] = env2[c/4].process(args.sampleTime * modDivider.getDivision());
 
 				if (getParam(LFO1_MODE_PARAM).getValue() > 0)
 				{
-					lfo1[c/4].setReset(trigger);
+					lfo1[c/4].setReset(triggerInput);
 				}
 				lfo1[c/4].process();
 				modMatrixInputs[LFO1_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getUnipolar();
@@ -1015,7 +1018,7 @@ struct Synth : Module {
 
 				if (getParam(LFO2_MODE_PARAM).getValue() > 0)
 				{
-					lfo2[c/4].setReset(trigger);
+					lfo2[c/4].setReset(triggerInput);
 				}
 				lfo2[c/4].process();
 				modMatrixInputs[LFO2_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getUnipolar();
@@ -1089,14 +1092,18 @@ struct Synth : Module {
 				outputs[INDIVIDUAL_MOD_3_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_3_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_4_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_4_PARAM - ENV1_A_PARAM][c/4], c);
 
-				// TODO fingered glide?
 				// glide only on V/Oct
 				float_4 vOctInput = inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c);
+				float_4 gateInput = inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c);
 				float_4 osc1FreqVOct = getParam(OSC1_TUNE_OCT_PARAM).getValue() +
 						modMatrixOutputs[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f -
 						modMatrix[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] * vOctInput / 5.f +
 						modMatrixOutputs[OSC1_TUNE_FINE_PARAM - ENV1_A_PARAM][c/4] / 5.f / 12.f;
 				glide1[c/4].setCutoffFreq(getGlideFreq(modMatrixOutputs[OSC1_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4], args.sampleRate));
+				if (getParam(OSC_TUNE_GLIDE_FINGERED_PARAM).getValue())
+				{
+					glide1[c/4].setState(vOctInput, gateInput > lastGate[c/4] + 0.5f);
+				}
 				oscillators[c/4].setOsc1FreqVOct(osc1FreqVOct +
 						modMatrix[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] / 5.f * glide1[c/4].processLowpass(vOctInput));
 
@@ -1111,8 +1118,11 @@ struct Synth : Module {
 						modMatrixOutputs[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f -
 						modMatrix[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] * vOctInput / 5.f +
 						modMatrixOutputs[OSC2_TUNE_FINE_PARAM - ENV1_A_PARAM][c/4] / 5.f / 12.f;
-
 				glide2[c/4].setCutoffFreq(getGlideFreq(modMatrixOutputs[OSC1_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[OSC2_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4], args.sampleRate));
+				if (getParam(OSC_TUNE_GLIDE_FINGERED_PARAM).getValue())
+				{
+					glide2[c/4].setState(vOctInput, gateInput > lastGate[c/4] + 0.5f);
+				}
 				oscillators[c/4].setOsc2FreqVOct(osc2FreqVOct +
 						modMatrix[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] / 5.f * glide2[c/4].processLowpass(vOctInput));
 
@@ -1171,6 +1181,9 @@ struct Synth : Module {
 				}
 
 				// TODO delay
+
+				lastGate[c/4] = gateInput;
+				lastTrigger[c/4] = triggerInput;
 			}
 		}
 
@@ -1442,8 +1455,9 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(119.039, 62.288)), module, Synth::OSC1_PW_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(140.626, 62.288)), module, Synth::OSC1_VOL_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(157.626, 62.288)), module, Synth::OSC1_SUB_VOL_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(52.835, 87.388)), module, Synth::OSC1_TUNE_GLIDE_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(69.835, 87.388)), module, Synth::OSC2_TUNE_GLIDE_PARAM));
+	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(mm2px(Vec(44.864, 87.388)), module, Synth::OSC_TUNE_GLIDE_FINGERED_PARAM, Synth::OSC_TUNE_GLIDE_FINGERED_LIGHT));
+	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(60.276, 87.388)), module, Synth::OSC1_TUNE_GLIDE_PARAM));
+	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(77.276, 87.388)), module, Synth::OSC2_TUNE_GLIDE_PARAM));
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(44.864, 112.488)), module, Synth::OSC2_TUNE_OCT_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(60.276, 112.488)), module, Synth::OSC2_TUNE_SEMI_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(77.276, 112.488)), module, Synth::OSC2_TUNE_FINE_PARAM));

@@ -113,6 +113,13 @@ struct TOnePoleZDF {
 		g = other.g;
 	}
 
+	void setState(T state, T mask)
+	{
+		x += mask & (state - x);
+		y += mask & (state - y);
+		z += mask & (state - z);
+	}
+
 	void process(T in) {
 		x = in;
 		T v = (x - z) * g;

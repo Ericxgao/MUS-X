@@ -1,4 +1,5 @@
 #include "plugin.hpp"
+#include "../dsp/functions.hpp"
 
 namespace musx {
 
@@ -14,7 +15,8 @@ private:
 	float_4 rand4 = {0.f};
 
 	// integers overflow, so phase resets automatically
-	int32_4 phasor = {0};
+	int32_4 phasor = {INT32_MIN};
+	int32_4 lastPhasor = {INT32_MIN};
 	int32_4 phaseInc = {0};
 	float_4 wave = {0}; // -1..1
 
@@ -23,6 +25,8 @@ private:
 	float_4 reset = {0};
 
 	size_t shape = 0;
+
+	int32_4 singleCycle = castFloatMaskToInt(float_4::zero());
 
 public:
 	static std::vector<std::string> getShapeLabels()
@@ -40,11 +44,13 @@ public:
 		return labels;
 	}
 
+	// [0..1]
 	void setRand(float rnd)
 	{
 		rand4 = rnd;
 	}
 
+	// [0..1]
 	void setRand(float_4 rnd)
 	{
 		rand4 = rnd;
@@ -65,10 +71,22 @@ public:
 		shape = s;
 	}
 
+	void setSingleCycle(bool s)
+	{
+		if (s)
+		{
+			singleCycle = castFloatMaskToInt(float_4::mask());
+		}
+		else
+		{
+			singleCycle = castFloatMaskToInt(float_4::zero());
+		}
+	}
+
 	// 0V = 2Hz
 	void setFrequencyVOct(float_4 f)
 	{
-		float_4 freq = 2. * dsp::exp2_taylor5(f);
+		float_4 freq = dsp::exp2_taylor5(f);
 		phaseInc = INT32_MAX / sampleRate * freq * sampleRateReduction;
 	}
 
@@ -79,64 +97,75 @@ public:
 
 	void setReset(float_4 rst)
 	{
-		phasor = simd::ifelse(rst > reset + 0.5, -INT32_MAX, phasor);
+		float_4 mask = rst > (reset + 0.5f);
+		phasor += castFloatMaskToInt(mask) & (-phasor + INT32_MIN);
+		lastPhasor += castFloatMaskToInt(mask) & (-lastPhasor + INT32_MAX);
 		reset = rst;
 	}
 
 	void resetPhases()
 	{
-		phasor = -INT32_MAX;
+		phasor = INT32_MIN;
 	}
 
 	void process()
 	{
-		int32_4 lastPhasor = phasor;
+		float_4 doSample = -(lastPhasor > phasor);
+		float_4 phase;
 
-		float_4 doSample;
+		lastPhasor = phasor;
+
+		// get phase inc
+		int32_4 realPhaseInc = 2*phaseInc;
+		switch(shape)
+		{
+		case 6:
+			realPhaseInc = 4*phaseInc;
+			break;
+		case 7:
+			realPhaseInc = phaseInc;
+		}
+		realPhaseInc -= (singleCycle & (phasor == INT32_MAX)) & realPhaseInc;
+
+		// increment phase
+		phasor += 2*realPhaseInc;
+		phasor += (singleCycle & (phasor < lastPhasor)) & (-phasor + INT32_MAX);
 
 		switch(shape)
 		{
 			case 0:
 				// sine
-				phasor += 2*phaseInc;
-				wave = -1. * simd::sin((float_4)(phasor/INT32_MAX)*M_PI);
+				wave = -1. * simd::sin((float_4)(phasor/INT32_MAX)*M_PI - 0.5f*M_PI);
 				break;
 			case 1:
 				// tri
-				phasor += 2*phaseInc;
 				wave = 2. * simd::ifelse(phasor < 0, (float_4)(phasor/INT32_MAX), -(float_4)(phasor/INT32_MAX)) + 1.;
 				break;
 			case 2:
 				// square
-				phasor += 2*phaseInc;
 				wave = 2. * (float_4)(phasor > 0 * 2. - 1.) + 1.;
 				break;
 			case 3:
 				// pulse
-				phasor += 2*phaseInc;
 				wave = 2. * (float_4)(phasor > -INT32_MAX/4 * 2. - 1.) + 1.;
 				break;
 			case 4:
 				// ramp
-				phasor += 2*phaseInc;
 				wave = (float_4)(phasor/INT32_MAX);
 				break;
 			case 5:
 				// saw
-				phasor += 2*phaseInc;
 				wave = -(float_4)(phasor/INT32_MAX);
 				break;
 			case 6:
 				// s&h
-				phasor += 4*phaseInc;
-				doSample = -(lastPhasor > phasor);
 				wave -= doSample * wave; // if doSample, set to 0
 				wave += doSample * (2. * rand4 - 1.f); // if doSample, set to random value
 				break;
 			case 7:
 				// warped
-				phasor += phaseInc;
-				wave = 2./3.26 * (simd::sin((float_4)(phasor/INT32_MAX)*M_PI) - simd::sin((float_4)(2*phasor/INT32_MAX)*M_PI + 0.4 * M_PI)) - 0.22;
+				phase = phasor/INT32_MAX * M_PI + 2.74477f;
+				wave = 2.f/3.26f * (simd::sin(phase) - simd::sin(2.f * phase + 0.6f * M_PI)) - 0.218575f;
 				break;
 			default:
 				wave = 0.f;

@@ -232,7 +232,6 @@ struct Synth : Module {
 	musx::TOnePoleZDF<float_4> glide2[4];
 	musx::OscillatorsBlock<maxOversamplingRate> oscillators[4];
 
-	float_4 noise = {0.f};
 	float_4 noiseVol1[4] = {0.f};
 	float_4 noiseVol2[4] = {0.f};
 
@@ -925,7 +924,9 @@ struct Synth : Module {
 				env2[c/4].setVelocityScaling(getParam(ENV2_VEL_PARAM).getValue());
 
 				lfo1[c/4].setShape(getParam(LFO1_SHAPE_PARAM).getValue());
+				lfo1[c/4].setSingleCycle(getParam(LFO1_MODE_PARAM).getValue() == 2);
 				lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
+				lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
 
 				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
 
@@ -939,6 +940,8 @@ struct Synth : Module {
 
 		if (modDivider.process())
 		{
+			float noise1 = rack::random::uniform();
+			float noise2 = rack::random::uniform();
 			for (int c = 0; c < channels; c += 4) {
 				// get modulation inputs
 				for (size_t iInput = 0; iInput < INDIVIDUAL_MOD_2_ASSIGN_PARAM; iInput++)
@@ -957,10 +960,18 @@ struct Synth : Module {
 				env2[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV2_ASSIGN_PARAM + 1][c/4] = env2[c/4].process(args.sampleTime * modDivider.getDivision());
 
+				if (getParam(LFO1_MODE_PARAM).getValue() > 0)
+				{
+					lfo1[c/4].setReset(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+				}
 				lfo1[c/4].process();
 				modMatrixInputs[LFO1_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getUnipolar();
 				modMatrixInputs[LFO1_BIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getBipolar();
 
+				if (getParam(LFO2_MODE_PARAM).getValue() > 0)
+				{
+					lfo2[c/4].setReset(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+				}
 				lfo2[c/4].process();
 				modMatrixInputs[LFO2_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getUnipolar();
 				modMatrixInputs[LFO2_BIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getBipolar();
@@ -1018,11 +1029,11 @@ struct Synth : Module {
 				env2[c/4].setSustainLevel(0.1f * modMatrixOutputs[ENV2_S_PARAM - ENV1_A_PARAM][c/4]);
 				env2[c/4].setReleaseTime(0.1f * modMatrixOutputs[ENV2_R_PARAM - ENV1_A_PARAM][c/4]);
 
-				lfo1[c/4].setRand(noise[0]);
+				lfo1[c/4].setRand(noise1);
 				lfo1[c/4].setFrequencyVOct(modMatrixOutputs[LFO1_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 				lfo1[c/4].setAmp(modMatrixOutputs[LFO1_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
 
-				lfo2[c/4].setRand(noise[1]);
+				lfo2[c/4].setRand(noise2);
 				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 				lfo2[c/4].setAmp(modMatrixOutputs[LFO2_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
 
@@ -1100,7 +1111,7 @@ struct Synth : Module {
 			oscillators[c/4].processBandlimited(buffer1, buffer2);
 
 			// noise
-			noise = random::normal();
+			float_4 noise = random::normal();
 			float_4 extIn = inputs[EXT_INPUT].getPolyVoltageSimd<float_4>(c);
 			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
 			{

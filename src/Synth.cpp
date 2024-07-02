@@ -216,6 +216,8 @@ struct Synth : Module {
 	bool mustCalculateDestination[nDestinations] = {false}; // false if all but the first entry of the mod matrix column are 0
 
 	// modulation blocks
+	float_4 lastTrigger[4] = {0.f};
+
 	static constexpr float MIN_TIME = 1e-3f;
 	static constexpr float MAX_TIME = 10.f;
 	static constexpr float LAMBDA_BASE = MAX_TIME / MIN_TIME;
@@ -919,7 +921,18 @@ struct Synth : Module {
 
 			// set non-modulatable parameters
 			for (int c = 0; c < channels; c += 4) {
-				// TODO
+				if (channels < 2)
+				{
+					modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4] = 0.f;
+				}
+				else
+				{
+					for (int iChannel = c; iChannel < std::min(channels, c + 4); iChannel++)
+					{
+						modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4][iChannel - c] = 10.f * ((iChannel) / (channels - 1.f)) - 5.f;
+					}
+				}
+
 				env1[c/4].setVelocityScaling(getParam(ENV1_VEL_PARAM).getValue());
 				env2[c/4].setVelocityScaling(getParam(ENV2_VEL_PARAM).getValue());
 
@@ -928,12 +941,15 @@ struct Synth : Module {
 				lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
 				lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
 
+				// TODO drift
+
 				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
 
 				filter1[c/4].setMode(getParam(FILTER1_MODE_PARAM).getValue());
 				filter2[c/4].setMode(getParam(FILTER2_MODE_PARAM).getValue());
 			}
 			globalLfo.setFrequencyVOct(getParam(GLOBAL_LFO_FREQ_PARAM).getValue());
+
 
 			// sync light
 			lights[OSC_SYNC_LIGHT].setBrightness(getParam(OSC_SYNC_PARAM).getValue());
@@ -952,20 +968,27 @@ struct Synth : Module {
 					modMatrixInputs[iInput + 1][c/4] = inputs[iInput].getPolyVoltageSimd<float_4>(c);
 				}
 
+				float_4 trigger = inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c);
+				float_4 rnd = {rack::random::uniform(), rack::random::uniform(), rack::random::uniform(), rack::random::uniform()};
+				modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4] = ifelse(trigger > lastTrigger[c/4] + 0.5f,
+						(10.f * rnd) - 5.f,
+						modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4]);
+				lastTrigger[c/4] = trigger;
+
 				// process modulation blocks
 				env1[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env1[c/4].setRetrigger(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+				env1[c/4].setRetrigger(trigger);
 				env1[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV1_ASSIGN_PARAM + 1][c/4] = env1[c/4].process(args.sampleTime * modDivider.getDivision());
 
 				env2[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env2[c/4].setRetrigger(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+				env2[c/4].setRetrigger(trigger);
 				env2[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV2_ASSIGN_PARAM + 1][c/4] = env2[c/4].process(args.sampleTime * modDivider.getDivision());
 
 				if (getParam(LFO1_MODE_PARAM).getValue() > 0)
 				{
-					lfo1[c/4].setReset(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+					lfo1[c/4].setReset(trigger);
 				}
 				lfo1[c/4].process();
 				modMatrixInputs[LFO1_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo1[c/4].getUnipolar();
@@ -973,7 +996,7 @@ struct Synth : Module {
 
 				if (getParam(LFO2_MODE_PARAM).getValue() > 0)
 				{
-					lfo2[c/4].setReset(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
+					lfo2[c/4].setReset(trigger);
 				}
 				lfo2[c/4].process();
 				modMatrixInputs[LFO2_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getUnipolar();
@@ -1442,8 +1465,8 @@ struct SynthWidget : ModuleWidget {
 		));
 
 		// TODO
-		// filter 1/2 integrator type
 		// filter solver
+		// filter 1/2 integrator type
 	}
 };
 

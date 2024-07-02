@@ -57,7 +57,6 @@ struct Synth : Module {
 		LFO2_FREQ_PARAM,
 		LFO2_AMOUNT_PARAM,
 
-		GLOBAL_LFO_FREQ_PARAM,
 		GLOBAL_LFO_AMT_PARAM,
 
 		INDIVIDUAL_MOD_OUT_1_PARAM,
@@ -110,6 +109,7 @@ struct Synth : Module {
 		LFO1_MODE_PARAM,
 		LFO2_SHAPE_PARAM,
 		LFO2_MODE_PARAM,
+		GLOBAL_LFO_FREQ_PARAM,
 		DRIFT_RATE_PARAM,
 		DRIFT_BALANCE_PARAM,
 
@@ -264,6 +264,7 @@ struct Synth : Module {
 		configSwitch(LFO1_MODE_PARAM, 0, 2, 0, "LFO 1 mode", {"free running", "retrigger", "retrigger, single cycle"});
 		configSwitch(LFO2_SHAPE_PARAM, 0, LFOBlock::getShapeLabels().size() - 1, 0, "LFO 2 shape", LFOBlock::getShapeLabels());
 		configSwitch(LFO2_MODE_PARAM, 0, 2, 0, "LFO 2 mode", {"free running", "retrigger", "retrigger, single cycle"});
+		configParam(GLOBAL_LFO_FREQ_PARAM, -5.f, 5.f, 0.f, "Global LFO frequency", " %", 0, 20.f);
 		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.f, "Drift rate", " Hz");
 		configParam(DRIFT_BALANCE_PARAM, -1.f, 1.f, 0.f, "Random constant offset / drift balance", " %", 100.);
 		configParam(OSC1_TUNE_OCT_PARAM, -4, 4, 0, "Oscillator 1 octave");
@@ -353,7 +354,6 @@ struct Synth : Module {
 			"LFO 2 frequency",
 			"LFO 2 amount",
 
-			"global LFO frequency",
 			"global LFO amount",
 
 			"individual modulation 1",
@@ -933,6 +933,7 @@ struct Synth : Module {
 				filter1[c/4].setMode(getParam(FILTER1_MODE_PARAM).getValue());
 				filter2[c/4].setMode(getParam(FILTER2_MODE_PARAM).getValue());
 			}
+			globalLfo.setFrequencyVOct(getParam(GLOBAL_LFO_FREQ_PARAM).getValue());
 
 			// sync light
 			lights[OSC_SYNC_LIGHT].setBrightness(getParam(OSC_SYNC_PARAM).getValue());
@@ -942,6 +943,8 @@ struct Synth : Module {
 		{
 			float noise1 = rack::random::uniform();
 			float noise2 = rack::random::uniform();
+			globalLfo.process();
+			float_4 globalLfoOut = globalLfo.getBipolar();
 			for (int c = 0; c < channels; c += 4) {
 				// get modulation inputs
 				for (size_t iInput = 0; iInput < INDIVIDUAL_MOD_2_ASSIGN_PARAM; iInput++)
@@ -975,6 +978,8 @@ struct Synth : Module {
 				lfo2[c/4].process();
 				modMatrixInputs[LFO2_UNIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getUnipolar();
 				modMatrixInputs[LFO2_BIPOLAR_ASSIGN_PARAM + 1][c/4] = lfo2[c/4].getBipolar();
+
+				modMatrixInputs[GLOBAL_LFO_ASSIGN_PARAM + 1][c/4] = clamp(modMatrixOutputs[GLOBAL_LFO_AMT_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f) * globalLfoOut;
 
 				// TODO
 
@@ -1037,7 +1042,7 @@ struct Synth : Module {
 				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 				lfo2[c/4].setAmp(modMatrixOutputs[LFO2_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
 
-				// TODO global LFO, drift
+				// TODO drift
 
 				outputs[INDIVIDUAL_MOD_1_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_1_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_2_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_2_PARAM - ENV1_A_PARAM][c/4], c);
@@ -1348,7 +1353,7 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(166.0, 37.188)), module, Synth::LFO2_SHAPE_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(183.0, 37.188)), module, Synth::LFO2_AMOUNT_PARAM));
 	    addParam(createParamCentered<NKK>(mm2px(Vec(198.0, 37.188)), module, Synth::LFO2_MODE_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(231.0, 12.088)), module, Synth::GLOBAL_LFO_FREQ_PARAM));
+	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(231.0, 12.088)), module, Synth::GLOBAL_LFO_FREQ_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(248.0, 12.088)), module, Synth::GLOBAL_LFO_AMT_PARAM));
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(231.0, 37.188)), module, Synth::DRIFT_RATE_PARAM));
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(248.0, 37.188)), module, Synth::DRIFT_BALANCE_PARAM));

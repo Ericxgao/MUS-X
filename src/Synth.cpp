@@ -264,7 +264,7 @@ struct Synth : Module {
 		configSwitch(LFO1_MODE_PARAM, 0, 2, 0, "LFO 1 mode", {"free running", "retrigger", "retrigger, single cycle"});
 		configSwitch(LFO2_SHAPE_PARAM, 0, LFOBlock::getShapeLabels().size() - 1, 0, "LFO 2 shape", LFOBlock::getShapeLabels());
 		configSwitch(LFO2_MODE_PARAM, 0, 2, 0, "LFO 2 mode", {"free running", "retrigger", "retrigger, single cycle"});
-		configParam(GLOBAL_LFO_FREQ_PARAM, -5.f, 5.f, 0.f, "Global LFO frequency", " %", 0, 20.f);
+		configParam(GLOBAL_LFO_FREQ_PARAM, -5.f, 5.f, 0.f, "Global LFO frequency", " Hz", 2.f, 2.f);
 		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.f, "Drift rate", " Hz");
 		configParam(DRIFT_BALANCE_PARAM, -1.f, 1.f, 0.f, "Random constant offset / drift balance", " %", 100.);
 		configParam(OSC1_TUNE_OCT_PARAM, -4, 4, 0, "Oscillator 1 octave");

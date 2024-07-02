@@ -1046,9 +1046,7 @@ struct Synth : Module {
 							modMatrixOutputs[iDest][c/4] += modMatrix[iDest][iSource] * modMatrixInputs[iSource][c/4];
 						}
 					}
-//					std::cerr << modMatrixOutputs[iDest][c/4][0] << "\t"; // TODO remove
 				}
-//				std::cerr << "\n"; // TODO remove
 
 				// calculate further values
 				float_4 noiseAmp = clamp(modMatrixOutputs[OSC_NOISE_VOL_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f);
@@ -1091,15 +1089,16 @@ struct Synth : Module {
 				outputs[INDIVIDUAL_MOD_3_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_3_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_4_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_4_PARAM - ENV1_A_PARAM][c/4], c);
 
-
+				// TODO fingered glide?
+				// glide only on V/Oct
+				float_4 vOctInput = inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c);
 				float_4 osc1FreqVOct = getParam(OSC1_TUNE_OCT_PARAM).getValue() +
-						modMatrixOutputs[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f +
+						modMatrixOutputs[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f -
+						modMatrix[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] * vOctInput / 5.f +
 						modMatrixOutputs[OSC1_TUNE_FINE_PARAM - ENV1_A_PARAM][c/4] / 5.f / 12.f;
-
-				// TODO fingered glide? glide only on V/Oct?
 				glide1[c/4].setCutoffFreq(getGlideFreq(modMatrixOutputs[OSC1_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4], args.sampleRate));
-				osc1FreqVOct = glide1[c/4].processLowpass(osc1FreqVOct);
-				oscillators[c/4].setOsc1FreqVOct(osc1FreqVOct);
+				oscillators[c/4].setOsc1FreqVOct(osc1FreqVOct +
+						modMatrix[OSC1_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] / 5.f * glide1[c/4].processLowpass(vOctInput));
 
 				oscillators[c/4].setOsc1Shape(0.2f * modMatrixOutputs[OSC1_SHAPE_PARAM - ENV1_A_PARAM][c/4] - 1.f);
 				oscillators[c/4].setOsc1PW(0.2f * modMatrixOutputs[OSC1_PW_PARAM - ENV1_A_PARAM][c/4] - 1.f);
@@ -1109,12 +1108,13 @@ struct Synth : Module {
 				oscillators[c/4].setOsc1SubPan(0.2f * modMatrixOutputs[OSC1_SUB_VOL_PARAM + nMixChannels - ENV1_A_PARAM][c/4]);
 
 				float_4 osc2FreqVOct = getParam(OSC2_TUNE_OCT_PARAM).getValue() +
-						modMatrixOutputs[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f +
+						modMatrixOutputs[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][c/4] / 5.f -
+						modMatrix[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] * vOctInput / 5.f +
 						modMatrixOutputs[OSC2_TUNE_FINE_PARAM - ENV1_A_PARAM][c/4] / 5.f / 12.f;
 
 				glide2[c/4].setCutoffFreq(getGlideFreq(modMatrixOutputs[OSC1_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[OSC2_TUNE_GLIDE_PARAM - ENV1_A_PARAM][c/4], args.sampleRate));
-				osc2FreqVOct = glide2[c/4].processLowpass(osc2FreqVOct);
-				oscillators[c/4].setOsc2FreqVOct(osc2FreqVOct);
+				oscillators[c/4].setOsc2FreqVOct(osc2FreqVOct +
+						modMatrix[OSC2_TUNE_SEMI_PARAM - ENV1_A_PARAM][VOCT_ASSIGN_PARAM + 1] / 5.f * glide2[c/4].processLowpass(vOctInput));
 
 				oscillators[c/4].setOsc2Shape(0.2f * modMatrixOutputs[OSC2_SHAPE_PARAM - ENV1_A_PARAM][c/4] - 1.f);
 				oscillators[c/4].setOsc2PW(0.2f * modMatrixOutputs[OSC2_PW_PARAM - ENV1_A_PARAM][c/4] - 1.f);

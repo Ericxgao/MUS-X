@@ -1058,6 +1058,9 @@ struct Synth : Module {
 				noiseVol2[c/4] = 1.f - noiseVol1[c/4];
 				noiseVol1[c/4] *= noiseAmp;
 				noiseVol2[c/4] *= noiseAmp;
+				// add -90db noise to bootstrap filter self oscillation
+				noiseVol1[c/4] = fmax(noiseVol1[c/4], 3.e-5f);
+				noiseVol2[c/4] = fmax(noiseVol2[c/4], 3.e-5f);
 
 				float_4 extAmp = clamp(0.1f * modMatrixOutputs[OSC_EXT_VOL_PARAM - ENV1_A_PARAM][c/4], 0.f, 1.f);
 				float_4 extMix = clamp(0.2f * modMatrixOutputs[OSC_EXT_VOL_PARAM + nMixChannels - ENV1_A_PARAM][c/4], -1.f, 1.f);

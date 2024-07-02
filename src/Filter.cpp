@@ -89,7 +89,7 @@ struct Filter : Module {
 			// set cutoff
 			float_4 voltage = params[CUTOFF_PARAM].getValue() + 0.1f * inputs[CUTOFF_INPUT].getPolyVoltageSimd<float_4>(c);
 			float_4 frequency = simd::exp(logBase * voltage) * minFreq;
-			frequency  = simd::clamp(frequency, minFreq, simd::fmin(maxFreq, args.sampleRate * oversamplingRate * 0.18f));
+			frequency = simd::clamp(frequency, minFreq, simd::fmin(2.f * maxFreq, args.sampleRate * oversamplingRate * 0.18f));
 
 			// resonance
 			float_4 resonance = 5. * (params[RESONANCE_PARAM].getValue() + 0.1f * inputs[RESONANCE_INPUT].getPolyVoltageSimd<float_4>(c));

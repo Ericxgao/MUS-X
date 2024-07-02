@@ -1142,39 +1142,39 @@ struct Synth : Module {
 				{
 				case 0: // individual
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 					break;
 				case 1: // offset
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 					break;
 				case 2: // space
 					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = simd::exp(filterLogBase * 0.1f * (modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4])) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);

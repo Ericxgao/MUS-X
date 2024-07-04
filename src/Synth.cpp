@@ -1254,11 +1254,11 @@ struct Synth : Module {
 			// pan, amp
 			float_4 pan1 = clamp(0.2f * modMatrixOutputs[FILTER1_PAN_PARAM - ENV1_A_PARAM][c/4], -1.f, 1.f);
 			float_4 pan2 = clamp(0.2f * modMatrixOutputs[FILTER2_PAN_PARAM - ENV1_A_PARAM][c/4], -1.f, 1.f);
-			// TODO constant power pan law with fast sqrt
-			float_4 vol1L = 0.5f - 0.5f * pan1;
-			float_4 vol1R = 1.f - vol1L;
-			float_4 vol2L = 0.5f - 0.5f * pan2;
-			float_4 vol2R = 1.f - vol2L;
+			// constant power pan law
+			float_4 vol1L = panGetVolL<float_4>(pan1);
+			float_4 vol1R = panGetVolR<float_4>(pan1);
+			float_4 vol2L = panGetVolL<float_4>(pan2);
+			float_4 vol2R = panGetVolR<float_4>(pan2);
 			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
 			{
 				// amp

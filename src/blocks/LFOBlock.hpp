@@ -164,8 +164,8 @@ public:
 				break;
 			case 7:
 				// warped
-				phase = phasor/INT32_MAX * M_PI + 2.74477f;
-				wave = 2.f/3.26f * (simd::sin(phase) - simd::sin(2.f * phase + 0.6f * M_PI)) - 0.218575f;
+				phase = phasor/INT32_MAX * M_PI + 2.701735654f;
+				wave = 0.598086124 * (fastCos(phase - 0.5f * M_PI) - fastCos(2.f * phase + 0.1f * M_PI)) - 0.19139f;
 				break;
 			default:
 				wave = 0.f;

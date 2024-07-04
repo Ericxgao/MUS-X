@@ -21,6 +21,18 @@ inline T fastCos(T x)
     return x;
 }
 
+template <typename T = float>
+inline T panGetVolL(T pan)
+{
+	return fastCos((pan + 1.f) * 0.25f * M_PI);
+}
+
+template <typename T = float>
+inline T panGetVolR(T pan)
+{
+	return fastCos((pan - 1.f) * 0.25f * M_PI);
+}
+
 inline float_4 waveshape(float_4 in)
 {
 	static const float a = {1.f/8.f};

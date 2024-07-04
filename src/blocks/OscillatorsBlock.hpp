@@ -434,8 +434,8 @@ public:
 
 				if (bufferR)
 				{
-					outLMono += osc1Subvol * getLVol(osc1SubPan) * (prevSub1[bufferReadIndex] + oscSubBlep.process());
-					outR += osc1Subvol * getRVol(osc1SubPan) * (prevSub1[bufferReadIndex] + oscSubBlep.process());
+					outLMono += osc1Subvol * panGetVolL<float_4>(osc1SubPan) * (prevSub1[bufferReadIndex] + oscSubBlep.process());
+					outR += osc1Subvol * panGetVolR<float_4>(osc1SubPan) * (prevSub1[bufferReadIndex] + oscSubBlep.process());
 				}
 				else
 				{
@@ -527,15 +527,15 @@ public:
 			// mix
 			if (bufferR)
 			{
-				outLMono += osc1Vol * getLVol(osc1Pan) * prevWave1[bufferReadIndex] +
-						osc2Vol * getLVol(osc2Pan) * prevWave2[bufferReadIndex] +
-						ringmodVol * getLVol(ringmodPan) * prevWave1[bufferReadIndex] * prevWave2[bufferReadIndex]; // +-5V each
+				outLMono += osc1Vol * panGetVolL<float_4>(osc1Pan) * prevWave1[bufferReadIndex] +
+						osc2Vol * panGetVolL<float_4>(osc2Pan) * prevWave2[bufferReadIndex] +
+						ringmodVol * panGetVolL<float_4>(ringmodPan) * prevWave1[bufferReadIndex] * prevWave2[bufferReadIndex]; // +-5V each
 
 				bufferLMono[i] = outLMono;
 
-				outR += osc1Vol * getRVol(osc1Pan) * prevWave1[bufferReadIndex] +
-						osc2Vol * getRVol(osc2Pan) * prevWave2[bufferReadIndex] +
-						ringmodVol * getRVol(ringmodPan) * prevWave1[bufferReadIndex] * prevWave2[bufferReadIndex]; // +-5V each
+				outR += osc1Vol * panGetVolR<float_4>(osc1Pan) * prevWave1[bufferReadIndex] +
+						osc2Vol * panGetVolR<float_4>(osc2Pan) * prevWave2[bufferReadIndex] +
+						ringmodVol * panGetVolR<float_4>(ringmodPan) * prevWave1[bufferReadIndex] * prevWave2[bufferReadIndex]; // +-5V each
 
 				bufferR[i] = outR;
 			}
@@ -698,16 +698,6 @@ private:
 		float_4 phasorResetMaskFloatNeg = castIntMaskToFloat(phasorResetMaskIntNeg);
 
 		return simd::ifelse(1.f * phaseInc > 0.f, phasorResetMaskFloatPos, phasorResetMaskFloatNeg);
-	}
-
-	float_4 getLVol(float_4 pan)
-	{
-		return 0.5f - 0.5f * pan;
-	}
-
-	float_4 getRVol(float_4 pan)
-	{
-		return 0.5f + 0.5f * pan;
 	}
 };
 

@@ -135,7 +135,7 @@ public:
 		{
 			case 0:
 				// sine
-				wave = -1. * simd::sin((float_4)(phasor/INT32_MAX)*M_PI - 0.5f*M_PI);
+				wave = fastCos((float_4)(phasor/INT32_MAX)*M_PI);
 				break;
 			case 1:
 				// tri

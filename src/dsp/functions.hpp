@@ -8,6 +8,19 @@ using namespace rack;
 using simd::float_4;
 using simd::int32_4;
 
+template <typename T = float>
+inline T fastCos(T x)
+{
+	// from https://stackoverflow.com/questions/18662261/fastest-implementation-of-sine-cosine-and-square-root-in-c-doesnt-need-to-b
+    x *= 1./(2.*M_PI);
+    x -= T(.25) + floor(x + T(.25));
+    x *= T(16.) * (fabs(x) - T(.5));
+    #if EXTRA_PRECISION
+    x += T(.225) * x * (fabs(x) - T(1.));
+    #endif
+    return x;
+}
+
 inline float_4 waveshape(float_4 in)
 {
 	static const float a = {1.f/8.f};

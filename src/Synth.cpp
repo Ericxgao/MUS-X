@@ -38,6 +38,8 @@ struct Synth : Module {
 		LFO2_UNIPOLAR_ASSIGN_PARAM,
 		LFO2_BIPOLAR_ASSIGN_PARAM,
 		GLOBAL_LFO_ASSIGN_PARAM,
+		DIVERGE_1_ASSIGN_PARAM,
+		DIVERGE_2_ASSIGN_PARAM,
 		DRIFT_1_ASSIGN_PARAM,
 		DRIFT_2_ASSIGN_PARAM,
 
@@ -59,6 +61,8 @@ struct Synth : Module {
 		LFO2_AMOUNT_PARAM,
 
 		GLOBAL_LFO_AMT_PARAM,
+
+		DRIFT_AMOUNT_PARAM,
 
 		INDIVIDUAL_MOD_OUT_1_PARAM,
 		INDIVIDUAL_MOD_OUT_2_PARAM,
@@ -112,7 +116,6 @@ struct Synth : Module {
 		LFO2_MODE_PARAM,
 		GLOBAL_LFO_FREQ_PARAM,
 		DRIFT_RATE_PARAM,
-		DRIFT_BALANCE_PARAM,
 
 		OSC1_TUNE_OCT_PARAM,
 		OSC2_TUNE_OCT_PARAM,
@@ -172,6 +175,8 @@ struct Synth : Module {
 		LFO2_UNIPOLAR_ASSIGN_LIGHT,
 		LFO2_BIPOLAR_ASSIGN_LIGHT,
 		GLOBAL_LFO_ASSIGN_LIGHT,
+		DIVERGE_1_ASSIGN_LIGHT,
+		DIVERGE_2_ASSIGN_LIGHT,
 		DRIFT_1_ASSIGN_LIGHT,
 		DRIFT_2_ASSIGN_LIGHT,
 
@@ -274,7 +279,6 @@ struct Synth : Module {
 		configSwitch(LFO2_MODE_PARAM, 0, 2, 0, "LFO 2 mode", {"free running", "retrigger", "retrigger, single cycle"});
 		configParam(GLOBAL_LFO_FREQ_PARAM, -5.f, 5.f, 0.f, "Global LFO frequency", " Hz", 2.f, 2.f);
 		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.5f, "Drift rate", " %", 0, 100.);
-		configParam(DRIFT_BALANCE_PARAM, 0.f, 1.f, 0.5f, "Random constant offset / drift balance", " %", 0, 100.);
 		configParam(OSC1_TUNE_OCT_PARAM, -4, 4, 0, "Oscillator 1 octave");
 		getParamQuantity(OSC1_TUNE_OCT_PARAM)->snapEnabled = true;
 		getParamQuantity(OSC1_TUNE_OCT_PARAM)->smoothEnabled = false;
@@ -317,7 +321,12 @@ struct Synth : Module {
 		for (int c = 0; c < 16; c += 4)
 		{
 			drift1[c/4].randomizeDiverge();
+			drift1[c/4].setDivergeAmount(0.f);
+			drift1[c/4].setDriftAmount(1.f);
+
 			drift2[c/4].randomizeDiverge();
+			drift2[c/4].setDivergeAmount(0.f);
+			drift2[c/4].setDriftAmount(1.f);
 		}
 	}
 
@@ -343,6 +352,8 @@ struct Synth : Module {
 			"LFO 2 (unipolar)",
 			"LFO 2 (bipolar)",
 			"global LFO (bipolar, monophonic)",
+			"diverge 1",
+			"diverge 2",
 			"drift 1",
 			"drift 2",
 		};
@@ -370,6 +381,8 @@ struct Synth : Module {
 			"LFO 2 amount",
 
 			"global LFO amount",
+
+			"diverge & drift amount",
 
 			"individual modulation 1",
 			"individual modulation 2",
@@ -984,11 +997,7 @@ struct Synth : Module {
 				lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
 
 				drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
-				drift1[c/4].setDivergeAmount(1.f - getParam(DRIFT_BALANCE_PARAM).getValue());
-				drift1[c/4].setDriftAmount(getParam(DRIFT_BALANCE_PARAM).getValue());
 				drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
-				drift2[c/4].setDivergeAmount(1.f - getParam(DRIFT_BALANCE_PARAM).getValue());
-				drift2[c/4].setDriftAmount(getParam(DRIFT_BALANCE_PARAM).getValue());
 
 				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
 
@@ -1051,8 +1060,10 @@ struct Synth : Module {
 
 				modMatrixInputs[GLOBAL_LFO_ASSIGN_PARAM + 1][c/4] = clamp(modMatrixOutputs[GLOBAL_LFO_AMT_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f) * globalLfoOut;
 
-				modMatrixInputs[DRIFT_1_ASSIGN_PARAM + 1][c/4] = drift1[c/4].process();
-				modMatrixInputs[DRIFT_2_ASSIGN_PARAM + 1][c/4] = drift2[c/4].process();
+				modMatrixInputs[DIVERGE_1_ASSIGN_PARAM + 1][c/4] = 0.2f * modMatrixOutputs[DRIFT_AMOUNT_PARAM - ENV1_A_PARAM][c/4] * drift1[c/4].getDiverge();
+				modMatrixInputs[DIVERGE_2_ASSIGN_PARAM + 1][c/4] = 0.2f * modMatrixOutputs[DRIFT_AMOUNT_PARAM - ENV1_A_PARAM][c/4] * drift2[c/4].getDiverge();
+				modMatrixInputs[DRIFT_1_ASSIGN_PARAM + 1][c/4] = 0.2f * modMatrixOutputs[DRIFT_AMOUNT_PARAM - ENV1_A_PARAM][c/4] * drift1[c/4].process();
+				modMatrixInputs[DRIFT_2_ASSIGN_PARAM + 1][c/4] = 0.2f * modMatrixOutputs[DRIFT_AMOUNT_PARAM - ENV1_A_PARAM][c/4] * drift2[c/4].process();
 
 				// matrix multiplication
 				for (size_t iDest = 0; iDest < nDestinations; iDest++)
@@ -1454,8 +1465,10 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 31.201)), module, Synth::LFO2_UNIPOLAR_ASSIGN_PARAM, Synth::LFO2_UNIPOLAR_ASSIGN_LIGHT));
 	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 42.762)), module, Synth::LFO2_BIPOLAR_ASSIGN_PARAM, Synth::LFO2_BIPOLAR_ASSIGN_LIGHT));
 	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(263.0, 12.088)), module, Synth::GLOBAL_LFO_ASSIGN_PARAM, Synth::GLOBAL_LFO_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(263.0, 33.843)), module, Synth::DRIFT_1_ASSIGN_PARAM, Synth::DRIFT_1_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(263.0, 44.742)), module, Synth::DRIFT_2_ASSIGN_PARAM, Synth::DRIFT_2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(257.179, 31.201)), module, Synth::DIVERGE_1_ASSIGN_PARAM, Synth::DIVERGE_1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(265.117, 31.201)), module, Synth::DIVERGE_2_ASSIGN_PARAM, Synth::DIVERGE_2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(257.179, 42.762)), module, Synth::DRIFT_1_ASSIGN_PARAM, Synth::DRIFT_1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(265.117, 42.762)), module, Synth::DRIFT_2_ASSIGN_PARAM, Synth::DRIFT_2_ASSIGN_LIGHT));
 
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(47.029, 12.088)), module, Synth::ENV1_A_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(64.029, 12.088)), module, Synth::ENV1_D_PARAM));
@@ -1477,8 +1490,8 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createParamCentered<NKK>(mm2px(Vec(198.0, 37.188)), module, Synth::LFO2_MODE_PARAM));
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(231.0, 12.088)), module, Synth::GLOBAL_LFO_FREQ_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(248.0, 12.088)), module, Synth::GLOBAL_LFO_AMT_PARAM));
-	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(231.0, 37.188)), module, Synth::DRIFT_RATE_PARAM));
-	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(248.0, 37.188)), module, Synth::DRIFT_BALANCE_PARAM));
+	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(229.413, 37.188)), module, Synth::DRIFT_RATE_PARAM));
+	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(244.825, 37.188)), module, Synth::DRIFT_AMOUNT_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.578, 12.088)), module, Synth::INDIVIDUAL_MOD_OUT_1_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.578, 37.188)), module, Synth::INDIVIDUAL_MOD_OUT_2_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.578, 62.288)), module, Synth::INDIVIDUAL_MOD_OUT_3_PARAM));

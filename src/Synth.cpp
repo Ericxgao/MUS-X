@@ -1537,7 +1537,12 @@ struct SynthWidget : ModuleWidget {
 		));
 
 		// TODO
+		// ui sample rate reduction
 		// filter solver
+		// lock quality settings
+
+		menu->addChild(new MenuSeparator);
+
 		// filter 1/2 integrator type
 	}
 };

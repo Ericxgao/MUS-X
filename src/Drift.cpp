@@ -61,7 +61,8 @@ struct Drift : Module {
 
 	void randomizeDiverge()
 	{
-		for (int c = 0; c < 16; c += 4) {
+		for (int c = 0; c < 16; c += 4)
+		{
 			driftBlock[c/4].randomizeDiverge();
 		}
 	}

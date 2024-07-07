@@ -57,7 +57,7 @@ public:
 	{
 		float cutoffFreq = simd::pow(base, f) * minFreq / sampleRate * sampleRateReduction;
 
-		driftScale = std::exp(-1.2f * std::log10(cutoffFreq*48000 / sampleRateReduction)) * 128.f + 7.f;
+		driftScale = std::exp(-1.2f * std::log10(cutoffFreq*48000 / 16.f)) * 128.f + 7.f;
 
 		lowpass.setCutoffFreq(cutoffFreq);
 		lowpass.tmp = simd::clamp(lowpass.tmp, -5.f/driftScale, 5.f/driftScale);

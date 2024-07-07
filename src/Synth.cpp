@@ -2,6 +2,7 @@
 #include "components/componentLibrary.hpp"
 
 #include "blocks/ADSRBlock.hpp"
+#include "blocks/DriftBlock.hpp"
 #include "blocks/FilterBlock.hpp"
 #include "blocks/LFOBlock.hpp"
 #include "blocks/OscillatorsBlock.hpp"
@@ -230,6 +231,8 @@ struct Synth : Module {
 	musx::LFOBlock lfo1[4];
 	musx::LFOBlock lfo2[4];
 	musx::LFOBlock globalLfo;
+	musx::DriftBlock drift1[4];
+	musx::DriftBlock drift2[4];
 
 	// audio blocks
 	musx::TOnePoleZDF<float_4> glide1[4];
@@ -270,8 +273,8 @@ struct Synth : Module {
 		configSwitch(LFO2_SHAPE_PARAM, 0, LFOBlock::getShapeLabels().size() - 1, 0, "LFO 2 shape", LFOBlock::getShapeLabels());
 		configSwitch(LFO2_MODE_PARAM, 0, 2, 0, "LFO 2 mode", {"free running", "retrigger", "retrigger, single cycle"});
 		configParam(GLOBAL_LFO_FREQ_PARAM, -5.f, 5.f, 0.f, "Global LFO frequency", " Hz", 2.f, 2.f);
-		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.f, "Drift rate", " Hz");
-		configParam(DRIFT_BALANCE_PARAM, -1.f, 1.f, 0.f, "Random constant offset / drift balance", " %", 100.);
+		configParam(DRIFT_RATE_PARAM, 0.f, 1.f, 0.5f, "Drift rate", " %", 0, 100.);
+		configParam(DRIFT_BALANCE_PARAM, 0.f, 1.f, 0.5f, "Random constant offset / drift balance", " %", 0, 100.);
 		configParam(OSC1_TUNE_OCT_PARAM, -4, 4, 0, "Oscillator 1 octave");
 		getParamQuantity(OSC1_TUNE_OCT_PARAM)->snapEnabled = true;
 		getParamQuantity(OSC1_TUNE_OCT_PARAM)->smoothEnabled = false;
@@ -310,6 +313,12 @@ struct Synth : Module {
 
 		uiDivider.setDivision(64);
 		modDivider.setDivision(modSampleRateReduction);
+
+		for (int c = 0; c < 16; c += 4)
+		{
+			drift1[c/4].randomizeDiverge();
+			drift2[c/4].randomizeDiverge();
+		}
 	}
 
 	static const std::array<std::string, nSources>& getSourceLabels()
@@ -762,8 +771,14 @@ struct Synth : Module {
 		sampleRate = e.sampleRate;
 		for (int c = 0; c < 16; c += 4) {
 			oscillators[c/4].setSampleRate(sampleRate);
+
 			lfo1[c/4].setSampleRate(sampleRate);
 			lfo2[c/4].setSampleRate(sampleRate);
+
+			drift1[c/4].setSampleRate(sampleRate);
+			drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+			drift2[c/4].setSampleRate(sampleRate);
+			drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
 		}
 		globalLfo.setSampleRate(sampleRate);
 		setOversamplingRate(oversamplingRate);
@@ -794,6 +809,11 @@ struct Synth : Module {
 		for (int c = 0; c < 16; c += 4) {
 			lfo1[c/4].setSampleRateReduction(modSampleRateReduction);
 			lfo2[c/4].setSampleRateReduction(modSampleRateReduction);
+
+			drift1[c/4].setSampleRateReduction(modSampleRateReduction);
+			drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+			drift2[c/4].setSampleRateReduction(modSampleRateReduction);
+			drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
 		}
 		globalLfo.setSampleRateReduction(modSampleRateReduction);
 	}
@@ -963,7 +983,12 @@ struct Synth : Module {
 				lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
 				lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
 
-				// TODO drift
+				drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+				drift1[c/4].setDivergeAmount(1.f - getParam(DRIFT_BALANCE_PARAM).getValue());
+				drift1[c/4].setDriftAmount(getParam(DRIFT_BALANCE_PARAM).getValue());
+				drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+				drift2[c/4].setDivergeAmount(1.f - getParam(DRIFT_BALANCE_PARAM).getValue());
+				drift2[c/4].setDriftAmount(getParam(DRIFT_BALANCE_PARAM).getValue());
 
 				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
 
@@ -1026,7 +1051,8 @@ struct Synth : Module {
 
 				modMatrixInputs[GLOBAL_LFO_ASSIGN_PARAM + 1][c/4] = clamp(modMatrixOutputs[GLOBAL_LFO_AMT_PARAM - ENV1_A_PARAM][c/4], 0.f, 10.f) * globalLfoOut;
 
-				// TODO drift
+				modMatrixInputs[DRIFT_1_ASSIGN_PARAM + 1][c/4] = drift1[c/4].process();
+				modMatrixInputs[DRIFT_2_ASSIGN_PARAM + 1][c/4] = drift2[c/4].process();
 
 				// matrix multiplication
 				for (size_t iDest = 0; iDest < nDestinations; iDest++)
@@ -1087,8 +1113,6 @@ struct Synth : Module {
 				lfo2[c/4].setRand(noise2);
 				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 				lfo2[c/4].setAmp(modMatrixOutputs[LFO2_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
-
-				// TODO drift
 
 				outputs[INDIVIDUAL_MOD_1_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_1_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_2_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_2_PARAM - ENV1_A_PARAM][c/4], c);
@@ -1323,6 +1347,8 @@ struct Synth : Module {
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
 		json_object_set_new(rootJ, "modSampleRateReduction", json_integer(modSampleRateReduction));
 
+		// TODO diverge
+
 		return rootJ;
 	}
 
@@ -1381,6 +1407,8 @@ struct Synth : Module {
 			modSampleRateReduction = json_integer_value(modSampleRateReductionJ);
 			modDivider.setDivision(modSampleRateReduction);
 		}
+
+		// TODO diverge
 
 		configureUi();
 	}

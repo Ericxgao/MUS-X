@@ -356,6 +356,10 @@ public:
 	{
 		return this->state[3];
 	}
+	T lowpassN(int order) const
+	{
+		return this->state[order];
+	}
 };
 
 template <typename T, IntegratorType integratorType = IntegratorType::Transistor_tanh>
@@ -373,6 +377,10 @@ protected:
 	}
 
 public:
+	T lowpass6() const
+	{
+		return this->state[0];
+	}
 	T lowpass() const
 	{
 		return this->state[1];

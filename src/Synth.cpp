@@ -422,9 +422,9 @@ struct Synth : Module {
 			"oscillator 1",
 			"oscillator 1 sub-oscillator",
 			"ring modulator",
-			"Noise",
+			"noise",
 			"oscillator 2",
-			"external audio input",
+			"external audio input / loopback",
 		};
 
 		return destinationLabelMap;
@@ -1243,21 +1243,36 @@ struct Synth : Module {
 			// oscillators
 			oscillators[c/4].processBandlimited(buffer1, buffer2);
 
-			// noise
+			// external input/loopback & noise
 			float_4 noise = random::normal();
-			float_4 extIn = inputs[EXT_INPUT].getPolyVoltageSimd<float_4>(c);
-			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+			if (inputs[EXT_INPUT].isConnected())
 			{
-				buffer1[iSample] += extVol1[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
-				buffer2[iSample] += extVol2[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
+				float_4 extIn = inputs[EXT_INPUT].getPolyVoltageSimd<float_4>(c);
+				for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+				{
+					// linear interpolation upsampling
+					buffer1[iSample] += extVol1[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
+					buffer2[iSample] += extVol2[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
 
-				buffer1[iSample] *= 2.f;
-				buffer2[iSample] *= 2.f;
+					buffer1[iSample] *= 2.f;
+					buffer2[iSample] *= 2.f;
 
-				buffer1[iSample] += noiseVol1[c/4] * noise;
-				buffer2[iSample] += noiseVol2[c/4] * noise;
+					buffer1[iSample] += noiseVol1[c/4] * noise;
+					buffer2[iSample] += noiseVol2[c/4] * noise;
+				}
+				lastExtIn[c/4] = extIn;
 			}
-			lastExtIn[c/4] = extIn;
+			else
+			{
+				for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+				{
+					buffer1[iSample] += extVol1[c/4] * (delayBuffer1[c/4][iSample] + delayBuffer2[c/4][iSample]);
+					buffer2[iSample] += extVol2[c/4] * (delayBuffer1[c/4][iSample] + delayBuffer2[c/4][iSample]);
+
+					buffer1[iSample] += noiseVol1[c/4] * noise;
+					buffer2[iSample] += noiseVol2[c/4] * noise;
+				}
+			}
 
 			// process filter 1
 			dcBlocker1[c/4].processHighpassBlock(buffer1, currentOversamplingRate);
@@ -1313,10 +1328,10 @@ struct Synth : Module {
 			// delay buffers to bring filter 1 and 2 in phase also with serial routing
 			std::memcpy(&delayBuffer1[c/4], &buffer1, sizeof(buffer1));
 			std::memcpy(&delayBuffer2[c/4], &buffer2, sizeof(buffer2));
-
-			// process stereo delay
-			// TODO
 		}
+
+		// process stereo delay
+		// TODO
 
 		// downsampling
 		float_4 outLR = decimator.process(currentOversamplingRate);

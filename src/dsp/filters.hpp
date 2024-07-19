@@ -355,4 +355,58 @@ struct AliasReductionFilter
 	}
 };
 
+
+struct CombFilter
+{
+	static const int delayLineSize = 2 << 16;
+	float_4 delayLine[delayLineSize] = {0};
+	int index = 0;
+
+	float_4 freq = 0;
+	float_4 feedback = 0;
+
+	// set frequency in Hz
+	void setFreq(float_4 f)
+	{
+		freq = clamp(f, 20.f, 22000.f);
+	}
+
+	// [0..5]
+	void setFeedback(float_4 f)
+	{
+		feedback = 1.f - clamp(f, 0.f, 5.f) / 5.f;
+		feedback = feedback * feedback;
+		feedback = 1.f - feedback;
+	}
+
+	// dt in seconds
+	float_4 process(float_4 in, float_4 dt)
+	{
+		// read from delay line
+		float_4 out = 0.f;
+		float_4 fractionalOffset = dt * freq;
+		fractionalOffset = 1.f / fractionalOffset;
+
+
+		for (size_t i = 0; i < 4; ++i)
+		{
+			int readIndex = index - fractionalOffset[i];
+			readIndex += (readIndex < 0) * delayLineSize;
+
+			out[i] = delayLine[readIndex][i];
+
+			// TODO interpolation
+		}
+
+		// write to delay line
+		delayLine[index] = in + feedback * out;
+
+		// advance index
+		++index;
+		index &= delayLineSize-1;
+
+		return out;
+	}
+};
+
 }

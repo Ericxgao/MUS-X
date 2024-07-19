@@ -376,7 +376,13 @@ struct CombFilter
 	{
 		feedback = 1.f - clamp(f, 0.f, 5.f) / 5.f;
 		feedback = feedback * feedback;
-		feedback = 1.f - feedback;
+		feedback = 1.0f - feedback;
+	}
+
+	void setNegativeFeedback(float_4 f)
+	{
+		setFeedback(f);
+		feedback *= -1.f;
 	}
 
 	// dt in seconds
@@ -385,21 +391,27 @@ struct CombFilter
 		// read from delay line
 		float_4 out = 0.f;
 		float_4 fractionalOffset = dt * freq;
-		fractionalOffset = 1.f / fractionalOffset;
+		fractionalOffset = fmin(1.f / fractionalOffset, delayLineSize - 1);
 
 
 		for (size_t i = 0; i < 4; ++i)
 		{
-			int readIndex = index - fractionalOffset[i];
+			int offsetFloor = fractionalOffset[i];
+			int readIndex = index - offsetFloor - 1;
 			readIndex += (readIndex < 0) * delayLineSize;
 
 			out[i] = delayLine[readIndex][i];
 
-			// TODO interpolation
+			int readIndex2 = readIndex + 1;
+			readIndex2 &= delayLineSize-1;
+
+			float frac = fractionalOffset[i] - offsetFloor;
+
+			out[i] = crossfade(delayLine[readIndex2][i], delayLine[readIndex][i], frac);
 		}
 
 		// write to delay line
-		delayLine[index] = in + feedback * out;
+		delayLine[index] = clamp(in + feedback * out , -100.f, 100.f);
 
 		// advance index
 		++index;

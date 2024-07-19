@@ -72,7 +72,8 @@ public:
 			"2-pole Sallen-Key bandpass, 6 dB/Oct",
 			"2-pole Sallen-Key highpass, 6 dB/Oct",
 			"2-pole Sallen-Key highpass, 12 dB/Oct",
-			"Comb Filter",
+			"Comb Filter (positive feendback)",
+			"Comb Filter (negative feendback)",
 			"Diode Clipper (Symmetric)",
 			"Diode Clipper (Asymmetric)",
 			"Bypass",
@@ -141,7 +142,7 @@ public:
 			break;
 		case 10:
 		case 11:
-		case 13:
+		case 14:
 			filter1Pole_ota_tanh.setCutoffFreq(frequency);
 			filter1Pole_ota_tanh.setResonance(resonance);
 			break;
@@ -175,21 +176,21 @@ public:
 			filter1Pole_ota_tanh.setCutoffFreq(frequency);
 			filter1Pole_ota_tanh.setResonance(resonance);
 			break;
-		case 130:
-		case 131:
-		case 132:
-			filter1Pole_ota_alt.setCutoffFreq(frequency);
-			filter1Pole_ota_alt.setResonance(resonance);
-			break;
 		case 140:
 		case 141:
 		case 142:
-			filter1Pole_transistor_tanh.setCutoffFreq(frequency);
-			filter1Pole_transistor_tanh.setResonance(resonance);
+			filter1Pole_ota_alt.setCutoffFreq(frequency);
+			filter1Pole_ota_alt.setResonance(resonance);
 			break;
 		case 150:
 		case 151:
 		case 152:
+			filter1Pole_transistor_tanh.setCutoffFreq(frequency);
+			filter1Pole_transistor_tanh.setResonance(resonance);
+			break;
+		case 160:
+		case 161:
+		case 162:
 			filter1Pole_transistor_alt.setCutoffFreq(frequency);
 			filter1Pole_transistor_alt.setResonance(resonance);
 			break;
@@ -514,60 +515,78 @@ public:
 		case 1300:
 		case 1301:
 		case 1302:
-			diodeClipper_linear.setCutoffFreq(frequency);
-			diodeClipper_linear.setResonance(resonance);
-			break;
 		case 1310:
 		case 1311:
 		case 1312:
-			diodeClipper_ota_tanh.setCutoffFreq(frequency);
-			diodeClipper_ota_tanh.setResonance(resonance);
-			break;
 		case 1320:
 		case 1321:
 		case 1322:
-			diodeClipper_ota_alt.setCutoffFreq(frequency);
-			diodeClipper_ota_alt.setResonance(resonance);
-			break;
 		case 1330:
 		case 1331:
 		case 1332:
-			diodeClipper_transistor_tanh.setCutoffFreq(frequency);
-			diodeClipper_transistor_tanh.setResonance(resonance);
-			break;
 		case 1340:
 		case 1341:
 		case 1342:
-			diodeClipper_transistor_alt.setCutoffFreq(frequency);
-			diodeClipper_transistor_alt.setResonance(resonance);
+			combFilter.setFreq(frequency);
+			combFilter.setNegativeFeedback(resonance);
 			break;
 		case 1400:
 		case 1401:
 		case 1402:
-			diodeClipperAsym_linear.setCutoffFreq(frequency);
-			diodeClipperAsym_linear.setResonance(resonance);
+			diodeClipper_linear.setCutoffFreq(frequency);
+			diodeClipper_linear.setResonance(resonance);
 			break;
 		case 1410:
 		case 1411:
 		case 1412:
-			diodeClipperAsym_ota_tanh.setCutoffFreq(frequency);
-			diodeClipperAsym_ota_tanh.setResonance(resonance);
+			diodeClipper_ota_tanh.setCutoffFreq(frequency);
+			diodeClipper_ota_tanh.setResonance(resonance);
 			break;
 		case 1420:
 		case 1421:
 		case 1422:
-			diodeClipperAsym_ota_alt.setCutoffFreq(frequency);
-			diodeClipperAsym_ota_alt.setResonance(resonance);
+			diodeClipper_ota_alt.setCutoffFreq(frequency);
+			diodeClipper_ota_alt.setResonance(resonance);
 			break;
 		case 1430:
 		case 1431:
 		case 1432:
-			diodeClipperAsym_transistor_tanh.setCutoffFreq(frequency);
-			diodeClipperAsym_transistor_tanh.setResonance(resonance);
+			diodeClipper_transistor_tanh.setCutoffFreq(frequency);
+			diodeClipper_transistor_tanh.setResonance(resonance);
 			break;
 		case 1440:
 		case 1441:
 		case 1442:
+			diodeClipper_transistor_alt.setCutoffFreq(frequency);
+			diodeClipper_transistor_alt.setResonance(resonance);
+			break;
+		case 1500:
+		case 1501:
+		case 1502:
+			diodeClipperAsym_linear.setCutoffFreq(frequency);
+			diodeClipperAsym_linear.setResonance(resonance);
+			break;
+		case 1510:
+		case 1511:
+		case 1512:
+			diodeClipperAsym_ota_tanh.setCutoffFreq(frequency);
+			diodeClipperAsym_ota_tanh.setResonance(resonance);
+			break;
+		case 1520:
+		case 1521:
+		case 1522:
+			diodeClipperAsym_ota_alt.setCutoffFreq(frequency);
+			diodeClipperAsym_ota_alt.setResonance(resonance);
+			break;
+		case 1530:
+		case 1531:
+		case 1532:
+			diodeClipperAsym_transistor_tanh.setCutoffFreq(frequency);
+			diodeClipperAsym_transistor_tanh.setResonance(resonance);
+			break;
+		case 1540:
+		case 1541:
+		case 1542:
 			diodeClipperAsym_transistor_alt.setCutoffFreq(frequency);
 			diodeClipperAsym_transistor_alt.setResonance(resonance);
 			break;
@@ -593,7 +612,7 @@ public:
 		case 11:
 			filter1Pole_ota_tanh.processRK2(in, dt);
 			return filter1Pole_ota_tanh.lowpass();
-		case 13:
+		case 14:
 			filter1Pole_ota_tanh.processRK4(in, dt);
 			return filter1Pole_ota_tanh.lowpass();
 		case 20:
@@ -641,31 +660,31 @@ public:
 		case 112:
 			filter1Pole_ota_tanh.processRK4(in, dt);
 			return filter1Pole_ota_tanh.highpass();
-		case 130:
+		case 140:
 			filter1Pole_ota_alt.processEuler(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 131:
+		case 141:
 			filter1Pole_ota_alt.processRK2(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 132:
+		case 142:
 			filter1Pole_ota_alt.processRK4(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 140:
+		case 150:
 			filter1Pole_transistor_tanh.processEuler(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 141:
+		case 151:
 			filter1Pole_transistor_tanh.processRK2(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 142:
+		case 152:
 			filter1Pole_transistor_tanh.processRK4(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 150:
+		case 160:
 			filter1Pole_transistor_alt.processEuler(in, dt);
 			return filter1Pole_transistor_alt.highpass();
-		case 151:
+		case 161:
 			filter1Pole_transistor_alt.processRK2(in, dt);
 			return filter1Pole_transistor_alt.highpass();
-		case 152:
+		case 162:
 			filter1Pole_transistor_alt.processRK4(in, dt);
 			return filter1Pole_transistor_alt.highpass();
 		case 200:
@@ -1133,95 +1152,110 @@ public:
 		case 1240:
 		case 1241:
 		case 1242:
-			return combFilter.process(in, dt);
 		case 1300:
+		case 1301:
+		case 1302:
+		case 1310:
+		case 1311:
+		case 1312:
+		case 1320:
+		case 1321:
+		case 1322:
+		case 1330:
+		case 1331:
+		case 1332:
+		case 1340:
+		case 1341:
+		case 1342:
+			return combFilter.process(in, dt);
+		case 1400:
 			diodeClipper_linear.processEuler(in, dt);
 			return diodeClipper_linear.out();
-		case 1301:
+		case 1401:
 			diodeClipper_linear.processRK2(in, dt);
 			return diodeClipper_linear.out();
-		case 1302:
+		case 1402:
 			diodeClipper_linear.processRK4(in, dt);
 			return diodeClipper_linear.out();
-		case 1310:
+		case 1410:
 			diodeClipper_ota_tanh.processEuler(in, dt);
 			return diodeClipper_ota_tanh.out();
-		case 1311:
+		case 1411:
 			diodeClipper_ota_tanh.processRK2(in, dt);
 			return diodeClipper_ota_tanh.out();
-		case 1312:
+		case 1412:
 			diodeClipper_ota_tanh.processRK4(in, dt);
 			return diodeClipper_ota_tanh.out();
-		case 1320:
+		case 1420:
 			diodeClipper_ota_alt.processEuler(in, dt);
 			return diodeClipper_ota_alt.out();
-		case 1321:
+		case 1421:
 			diodeClipper_ota_alt.processRK2(in, dt);
 			return diodeClipper_ota_alt.out();
-		case 1322:
+		case 1422:
 			diodeClipper_ota_alt.processRK4(in, dt);
 			return diodeClipper_ota_alt.out();
-		case 1330:
+		case 1430:
 			diodeClipper_transistor_tanh.processEuler(in, dt);
 			return diodeClipper_transistor_tanh.out();
-		case 1331:
+		case 1431:
 			diodeClipper_transistor_tanh.processRK2(in, dt);
 			return diodeClipper_transistor_tanh.out();
-		case 1332:
+		case 1432:
 			diodeClipper_transistor_tanh.processRK4(in, dt);
 			return diodeClipper_transistor_tanh.out();
-		case 1340:
+		case 1440:
 			diodeClipper_transistor_alt.processEuler(in, dt);
 			return diodeClipper_transistor_alt.out();
-		case 1341:
+		case 1441:
 			diodeClipper_transistor_alt.processRK2(in, dt);
 			return diodeClipper_transistor_alt.out();
-		case 1342:
+		case 1442:
 			diodeClipper_transistor_alt.processRK4(in, dt);
 			return diodeClipper_transistor_alt.out();
-		case 1400:
+		case 1500:
 			diodeClipperAsym_linear.processEuler(in, dt);
 			return diodeClipperAsym_linear.out();
-		case 1401:
+		case 1501:
 			diodeClipperAsym_linear.processRK2(in, dt);
 			return diodeClipperAsym_linear.out();
-		case 1402:
+		case 1502:
 			diodeClipperAsym_linear.processRK4(in, dt);
 			return diodeClipperAsym_linear.out();
-		case 1410:
+		case 1510:
 			diodeClipperAsym_ota_tanh.processEuler(in, dt);
 			return diodeClipperAsym_ota_tanh.out();
-		case 1411:
+		case 1511:
 			diodeClipperAsym_ota_tanh.processRK2(in, dt);
 			return diodeClipperAsym_ota_tanh.out();
-		case 1412:
+		case 1512:
 			diodeClipperAsym_ota_tanh.processRK4(in, dt);
 			return diodeClipperAsym_ota_tanh.out();
-		case 1420:
+		case 1520:
 			diodeClipperAsym_ota_alt.processEuler(in, dt);
 			return diodeClipperAsym_ota_alt.out();
-		case 1421:
+		case 1521:
 			diodeClipperAsym_ota_alt.processRK2(in, dt);
 			return diodeClipperAsym_ota_alt.out();
-		case 1422:
+		case 1522:
 			diodeClipperAsym_ota_alt.processRK4(in, dt);
 			return diodeClipperAsym_ota_alt.out();
-		case 1430:
+		case 1530:
 			diodeClipperAsym_transistor_tanh.processEuler(in, dt);
 			return diodeClipperAsym_transistor_tanh.out();
-		case 1431:
+		case 1531:
 			diodeClipperAsym_transistor_tanh.processRK2(in, dt);
 			return diodeClipperAsym_transistor_tanh.out();
-		case 1432:
+		case 1532:
 			diodeClipperAsym_transistor_tanh.processRK4(in, dt);
 			return diodeClipperAsym_transistor_tanh.out();
-		case 1440:
+		case 1540:
 			diodeClipperAsym_transistor_alt.processEuler(in, dt);
 			return diodeClipperAsym_transistor_alt.out();
-		case 1441:
+		case 1541:
 			diodeClipperAsym_transistor_alt.processRK2(in, dt);
 			return diodeClipperAsym_transistor_alt.out();
-		case 1442:
+		case 1542:
 			diodeClipperAsym_transistor_alt.processRK4(in, dt);
 			return diodeClipperAsym_transistor_alt.out();
 		default:
@@ -1268,7 +1302,7 @@ public:
 				in[i] = filter1Pole_ota_tanh.lowpass();
 			}
 			break;
-		case 13:
+		case 14:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_tanh.processRK4(in[i], dt);
@@ -1380,63 +1414,63 @@ public:
 				in[i] = filter1Pole_ota_tanh.highpass();
 			}
 			break;
-		case 130:
+		case 140:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processEuler(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 131:
+		case 141:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processRK2(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 132:
+		case 142:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processRK4(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 140:
+		case 150:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processEuler(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 141:
+		case 151:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processRK2(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 142:
+		case 152:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processRK4(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 150:
+		case 160:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processEuler(in[i], dt);
 				in[i] = filter1Pole_transistor_alt.highpass();
 			}
 			break;
-		case 151:
+		case 161:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processRK2(in[i], dt);
 				in[i] = filter1Pole_transistor_alt.highpass();
 			}
 			break;
-		case 152:
+		case 162:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processRK4(in[i], dt);
@@ -2508,236 +2542,251 @@ public:
 		case 1240:
 		case 1241:
 		case 1242:
+		case 1300:
+		case 1301:
+		case 1302:
+		case 1310:
+		case 1311:
+		case 1312:
+		case 1320:
+		case 1321:
+		case 1322:
+		case 1330:
+		case 1331:
+		case 1332:
+		case 1340:
+		case 1341:
+		case 1342:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				in[i] = combFilter.process(in[i], dt);
 			}
 			break;
-		case 1300:
+		case 1400:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_linear.processEuler(in[i], dt);
 				in[i] = diodeClipper_linear.out();
 			}
 			break;
-		case 1301:
+		case 1401:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_linear.processRK2(in[i], dt);
 				in[i] = diodeClipper_linear.out();
 			}
 			break;
-		case 1302:
+		case 1402:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_linear.processRK4(in[i], dt);
 				in[i] = diodeClipper_linear.out();
 			}
 			break;
-		case 1310:
+		case 1410:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_tanh.processEuler(in[i], dt);
 				in[i] = diodeClipper_ota_tanh.out();
 			}
 			break;
-		case 1311:
+		case 1411:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_tanh.processRK2(in[i], dt);
 				in[i] = diodeClipper_ota_tanh.out();
 			}
 			break;
-		case 1312:
+		case 1412:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_tanh.processRK4(in[i], dt);
 				in[i] = diodeClipper_ota_tanh.out();
 			}
 			break;
-		case 1320:
+		case 1420:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_alt.processEuler(in[i], dt);
 				in[i] = diodeClipper_ota_alt.out();
 			}
 			break;
-		case 1321:
+		case 1421:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_alt.processRK2(in[i], dt);
 				in[i] = diodeClipper_ota_alt.out();
 			}
 			break;
-		case 1322:
+		case 1422:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_ota_alt.processRK4(in[i], dt);
 				in[i] = diodeClipper_ota_alt.out();
 			}
 			break;
-		case 1330:
+		case 1430:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_tanh.processEuler(in[i], dt);
 				in[i] = diodeClipper_transistor_tanh.out();
 			}
 			break;
-		case 1331:
+		case 1431:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_tanh.processRK2(in[i], dt);
 				in[i] = diodeClipper_transistor_tanh.out();
 			}
 			break;
-		case 1332:
+		case 1432:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_tanh.processRK4(in[i], dt);
 				in[i] = diodeClipper_transistor_tanh.out();
 			}
 			break;
-		case 1340:
+		case 1440:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_alt.processEuler(in[i], dt);
 				in[i] = diodeClipper_transistor_alt.out();
 			}
 			break;
-		case 1341:
+		case 1441:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_alt.processRK2(in[i], dt);
 				in[i] = diodeClipper_transistor_alt.out();
 			}
 			break;
-		case 1342:
+		case 1442:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipper_transistor_alt.processRK4(in[i], dt);
 				in[i] = diodeClipper_transistor_alt.out();
 			}
 			break;
-		case 1400:
+		case 1500:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_linear.processEuler(in[i], dt);
 				in[i] = diodeClipperAsym_linear.out();
 			}
 			break;
-		case 1401:
+		case 1501:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_linear.processRK2(in[i], dt);
 				in[i] = diodeClipperAsym_linear.out();
 			}
 			break;
-		case 1402:
+		case 1502:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_linear.processRK4(in[i], dt);
 				in[i] = diodeClipperAsym_linear.out();
 			}
 			break;
-		case 1410:
+		case 1510:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_tanh.processEuler(in[i], dt);
 				in[i] = diodeClipperAsym_ota_tanh.out();
 			}
 			break;
-		case 1411:
+		case 1511:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_tanh.processRK2(in[i], dt);
 				in[i] = diodeClipperAsym_ota_tanh.out();
 			}
 			break;
-		case 1412:
+		case 1512:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_tanh.processRK4(in[i], dt);
 				in[i] = diodeClipperAsym_ota_tanh.out();
 			}
 			break;
-		case 1420:
+		case 1520:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_alt.processEuler(in[i], dt);
 				in[i] = diodeClipperAsym_ota_alt.out();
 			}
 			break;
-		case 1421:
+		case 1521:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_alt.processRK2(in[i], dt);
 				in[i] = diodeClipperAsym_ota_alt.out();
 			}
 			break;
-		case 1422:
+		case 1522:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_ota_alt.processRK4(in[i], dt);
 				in[i] = diodeClipperAsym_ota_alt.out();
 			}
 			break;
-		case 1430:
+		case 1530:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_tanh.processEuler(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_tanh.out();
 			}
 			break;
-		case 1431:
+		case 1531:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_tanh.processRK2(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_tanh.out();
 			}
 			break;
-		case 1432:
+		case 1532:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_tanh.processRK4(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_tanh.out();
 			}
 			break;
-		case 1440:
+		case 1540:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_alt.processEuler(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_alt.out();
 			}
 			break;
-		case 1441:
+		case 1541:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_alt.processRK2(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_alt.out();
 			}
 			break;
-		case 1442:
+		case 1542:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				diodeClipperAsym_transistor_alt.processRK4(in[i], dt);
 				in[i] = diodeClipperAsym_transistor_alt.out();
 			}
 			break;
-		case 1600:
-		case 1601:
-		case 1602:
-		case 1610:
-		case 1611:
-		case 1612:
-		case 1620:
-		case 1621:
-		case 1622:
-		case 1630:
-		case 1631:
-		case 1632:
-		case 1640:
-		case 1641:
-		case 1642:
+		case 1700:
+		case 1701:
+		case 1702:
+		case 1710:
+		case 1711:
+		case 1712:
+		case 1720:
+		case 1721:
+		case 1722:
+		case 1730:
+		case 1731:
+		case 1732:
+		case 1740:
+		case 1741:
+		case 1742:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				in[i] = 0.f;

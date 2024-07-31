@@ -201,6 +201,7 @@ struct Synth : Module {
 	dsp::ClockDivider modDivider;
 
 	Method filterMethod = Method::RK2;
+	IntegratorType filterIntegratorType = IntegratorType::Transistor_tanh;
 
 	// mod matrix
 	static constexpr size_t nSources = ENV1_A_PARAM + 1; // number of modulation sources, + 1 for base vale
@@ -835,6 +836,16 @@ struct Synth : Module {
 		}
 	}
 
+	void setFilterIntegratorType(IntegratorType t)
+	{
+		filterIntegratorType = t;
+		for (int c = 0; c < 16; c += 4)
+		{
+			filter1[c/4].setIntegratorType(filterIntegratorType);
+			filter2[c/4].setIntegratorType(filterIntegratorType);
+		}
+	}
+
 	void onReset(const ResetEvent& e) override
 	{
 		// reset only modulation assignments when activeSourceAssign
@@ -1378,6 +1389,8 @@ struct Synth : Module {
 		json_object_set_new(rootJ, "filterMethod", json_integer((int)filterMethod));
 		json_object_set_new(rootJ, "lockQualitySettings", json_boolean(lockQualitySettings));
 
+		json_object_set_new(rootJ, "filterIntegratorType", json_integer((int)filterIntegratorType));
+
 		// diverge
 		json_t* diverge1J = json_array();
 		json_t* diverge2J = json_array();
@@ -1475,6 +1488,12 @@ struct Synth : Module {
 			{
 				lockQualitySettings = json_boolean_value(lockQualitySettingsJ);
 			}
+		}
+
+		json_t* filterIntegratorTypeJ = json_object_get(rootJ, "filterIntegratorType");
+		if (filterIntegratorTypeJ)
+		{
+			setFilterIntegratorType((IntegratorType)json_integer_value(filterIntegratorTypeJ));
 		}
 
 		// diverge
@@ -1682,8 +1701,14 @@ struct SynthWidget : ModuleWidget {
 
 		menu->addChild(new MenuSeparator);
 
-		// TODO
-		// filter integrator type
+		menu->addChild(createIndexSubmenuItem("Filter integrator type", FilterBlock::getIntegratorTypeLabels(),
+			[=]() {
+				return (int)module->filterIntegratorType;
+			},
+			[=](int mode) {
+				module->setFilterIntegratorType((IntegratorType)mode);
+			}
+		));
 
 	}
 };

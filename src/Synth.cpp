@@ -68,6 +68,7 @@ struct Synth : Module {
 		INDIVIDUAL_MOD_OUT_2_PARAM,
 		INDIVIDUAL_MOD_OUT_3_PARAM,
 		INDIVIDUAL_MOD_OUT_4_PARAM,
+		INDIVIDUAL_MOD_OUT_5_PARAM,
 
 		OSC1_TUNE_GLIDE_PARAM,
 		OSC1_TUNE_SEMI_PARAM,
@@ -94,10 +95,6 @@ struct Synth : Module {
 		FILTER_SERIAL_PARALLEL_PARAM,
 
 		AMP_VOL_PARAM,
-
-		DELAY_TIME_PARAM,
-		DELAY_FEEDBACK_PARAM,
-		DELAY_MIX_PARAM,
 
 		// mix params
 		OSC1_VOL_PARAM,
@@ -127,8 +124,6 @@ struct Synth : Module {
 		FILTER2_CUTOFF_MODE_PARAM,
 		FILTER2_MODE_PARAM,
 
-		DELAY_TAP_PARAM,
-
 		PARAMS_LEN
 	};
 	enum InputId {
@@ -150,6 +145,7 @@ struct Synth : Module {
 		INDIVIDUAL_MOD_2_OUTPUT,
 		INDIVIDUAL_MOD_3_OUTPUT,
 		INDIVIDUAL_MOD_4_OUTPUT,
+		INDIVIDUAL_MOD_5_OUTPUT,
 		OUT_L_OUTPUT,
 		OUT_R_OUTPUT,
 		OUTPUTS_LEN
@@ -291,7 +287,6 @@ struct Synth : Module {
 		configSwitch(FILTER1_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 1 mode", FilterBlock::getModeLabels());
 		configSwitch(FILTER2_CUTOFF_MODE_PARAM, 0, 2, 0, "Filter 2 cutoff mode", {"individual", "offset", "space"});
 		configSwitch(FILTER2_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 2 mode", FilterBlock::getModeLabels());
-		configSwitch(DELAY_TAP_PARAM, 0, 1, 0, "Delay tap tempo");
 
 		configInput(VOCT_INPUT, "V/Oct");
 		configInput(GATE_INPUT, "Gate");
@@ -308,6 +303,7 @@ struct Synth : Module {
 		configOutput(INDIVIDUAL_MOD_2_OUTPUT, "Indvidual modulation 2");
 		configOutput(INDIVIDUAL_MOD_3_OUTPUT, "Indvidual modulation 3");
 		configOutput(INDIVIDUAL_MOD_4_OUTPUT, "Indvidual modulation 4");
+		configOutput(INDIVIDUAL_MOD_5_OUTPUT, "Indvidual modulation 5");
 		configOutput(OUT_L_OUTPUT, "Left/Mono");
 		configOutput(OUT_R_OUTPUT, "Right");
 
@@ -388,6 +384,7 @@ struct Synth : Module {
 			"individual modulation 2",
 			"individual modulation 3",
 			"individual modulation 4",
+			"individual modulation 5",
 
 			"oscillator 1 glide",
 			"oscillator 1 semitones",
@@ -414,10 +411,6 @@ struct Synth : Module {
 			"filter routing: serial / parallel",
 
 			"amp volume",
-
-			"delay time",
-			"delay feedback",
-			"delay dry-wet mix",
 
 			"oscillator 1",
 			"oscillator 1 sub-oscillator",
@@ -575,11 +568,11 @@ struct Synth : Module {
 				case INDIVIDUAL_MOD_OUT_2_PARAM:
 				case INDIVIDUAL_MOD_OUT_3_PARAM:
 				case INDIVIDUAL_MOD_OUT_4_PARAM:
+				case INDIVIDUAL_MOD_OUT_5_PARAM:
 				case OSC2_TUNE_GLIDE_PARAM:
 				case OSC2_TUNE_FINE_PARAM:
 				case FILTER1_PAN_PARAM:
 				case FILTER2_PAN_PARAM:
-				case DELAY_MIX_PARAM:
 					// bipolar
 					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel,
@@ -880,6 +873,7 @@ struct Synth : Module {
 			outputs[INDIVIDUAL_MOD_2_OUTPUT].setChannels(channels);
 			outputs[INDIVIDUAL_MOD_3_OUTPUT].setChannels(channels);
 			outputs[INDIVIDUAL_MOD_4_OUTPUT].setChannels(channels);
+			outputs[INDIVIDUAL_MOD_5_OUTPUT].setChannels(channels);
 
 			// update activeSourceAssign and oscMixRouteActive
 			size_t newActiveSourceAssign = 0;
@@ -1129,6 +1123,7 @@ struct Synth : Module {
 				outputs[INDIVIDUAL_MOD_2_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_2_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_3_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_3_PARAM - ENV1_A_PARAM][c/4], c);
 				outputs[INDIVIDUAL_MOD_4_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_4_PARAM - ENV1_A_PARAM][c/4], c);
+				outputs[INDIVIDUAL_MOD_5_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_5_PARAM - ENV1_A_PARAM][c/4], c);
 
 				// glide only on V/Oct
 				float_4 vOctInput = inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c);
@@ -1220,8 +1215,6 @@ struct Synth : Module {
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 				}
-
-				// TODO delay
 
 				lastGate[c/4] = gateInput;
 				lastTrigger[c/4] = triggerInput;
@@ -1329,9 +1322,6 @@ struct Synth : Module {
 			std::memcpy(&delayBuffer1[c/4], &buffer1, sizeof(buffer1));
 			std::memcpy(&delayBuffer2[c/4], &buffer2, sizeof(buffer2));
 		}
-
-		// process stereo delay
-		// TODO
 
 		// downsampling
 		float_4 outLR = decimator.process(currentOversamplingRate);
@@ -1511,6 +1501,7 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.578, 37.188)), module, Synth::INDIVIDUAL_MOD_OUT_2_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.578, 62.288)), module, Synth::INDIVIDUAL_MOD_OUT_3_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.577, 87.388)), module, Synth::INDIVIDUAL_MOD_OUT_4_PARAM));
+	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(284.577, 112.557)), module, Synth::INDIVIDUAL_MOD_OUT_5_PARAM));
 	    addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(44.864, 62.288)), module, Synth::OSC1_TUNE_OCT_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(60.276, 62.288)), module, Synth::OSC1_TUNE_SEMI_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(77.276, 62.288)), module, Synth::OSC1_TUNE_FINE_PARAM));
@@ -1544,10 +1535,6 @@ struct SynthWidget : ModuleWidget {
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(259.737, 87.388)), module, Synth::FILTER2_PAN_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(242.737, 75.237)), module, Synth::FILTER_SERIAL_PARALLEL_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(183.587, 112.488)), module, Synth::AMP_VOL_PARAM));
-	    addParam(createParamCentered<VCVLightLatch<MediumSimpleLight<WhiteLight>>>(mm2px(Vec(209.587, 112.488)), module, Synth::DELAY_TAP_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(225.65, 112.626)), module, Synth::DELAY_TIME_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(242.65, 112.626)), module, Synth::DELAY_FEEDBACK_PARAM));
-	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(259.737, 112.557)), module, Synth::DELAY_MIX_PARAM));
 
 	    addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.0, 8.557)), module, Synth::VOCT_INPUT));
 	    addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.0, 18.182)), module, Synth::GATE_INPUT));
@@ -1565,8 +1552,10 @@ struct SynthWidget : ModuleWidget {
 		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(298.976, 37.188)), module, Synth::INDIVIDUAL_MOD_2_OUTPUT));
 		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(298.976, 62.288)), module, Synth::INDIVIDUAL_MOD_3_OUTPUT));
 		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(298.975, 87.388)), module, Synth::INDIVIDUAL_MOD_4_OUTPUT));
-		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(279.323, 112.557)), module, Synth::OUT_L_OUTPUT));
-		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(294.477, 112.557)), module, Synth::OUT_R_OUTPUT));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(298.975, 112.557)), module, Synth::INDIVIDUAL_MOD_5_OUTPUT));
+
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(246.638, 112.557)), module, Synth::OUT_L_OUTPUT));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(261.791, 112.557)), module, Synth::OUT_R_OUTPUT));
 	}
 
 	void appendContextMenu(Menu* menu) override {

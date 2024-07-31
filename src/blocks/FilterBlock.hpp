@@ -423,7 +423,7 @@ public:
 		case 1340:
 		case 1341:
 		case 1342:
-			combFilter.setFreq(frequency);
+			combFilter.setFreq(2.f * frequency);
 			combFilter.setNegativeFeedback(resonance);
 			break;
 		case 1400:

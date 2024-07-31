@@ -368,7 +368,7 @@ struct CombFilter
 	// set frequency in Hz
 	void setFreq(float_4 f)
 	{
-		freq = clamp(f, 20.f, 22000.f);
+		freq = clamp(f, 20.f, 44000.f);
 	}
 
 	// [0..5]

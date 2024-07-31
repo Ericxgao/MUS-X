@@ -85,9 +85,9 @@ public:
 	static std::vector<std::string> getOdeSolverLabels()
 	{
 		std::vector<std::string> labels = {
-			"1st order Euler",
+			"1st order Euler (low CPU)",
 			"2nd order Runge-Kutta",
-			"4th order Runge-Kutta"
+			"4th order Runge-Kutta (best quality)"
 		};
 		return labels;
 	}

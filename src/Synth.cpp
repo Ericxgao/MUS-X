@@ -189,7 +189,8 @@ struct Synth : Module {
 
 	ModuleWidget* widget = nullptr;
 
-	// over/-undersampling
+	// over/-undersampling, quality
+	int lockQualitySettings = -1;
 	static const size_t maxOversamplingRate = 16;
 	size_t oversamplingRate = 8;
 	size_t sampleRate = 48000;
@@ -197,8 +198,9 @@ struct Synth : Module {
 	HalfBandDecimatorCascade<float_4> decimator;
 
 	dsp::ClockDivider uiDivider;
-	size_t modSampleRateReduction = 2;
 	dsp::ClockDivider modDivider;
+
+	Method filterMethod = Method::RK2;
 
 	// mod matrix
 	static constexpr size_t nSources = ENV1_A_PARAM + 1; // number of modulation sources, + 1 for base vale
@@ -311,8 +313,8 @@ struct Synth : Module {
 
 		configureUi();
 
-		uiDivider.setDivision(64);
-		modDivider.setDivision(modSampleRateReduction);
+		uiDivider.setDivision(16);
+		modDivider.setDivision(2);
 
 		for (int c = 0; c < 16; c += 4)
 		{
@@ -809,19 +811,28 @@ struct Synth : Module {
 
 	void setModSampleRateReduction(size_t arg)
 	{
-		modSampleRateReduction = arg;
-		modDivider.setDivision(modSampleRateReduction);
+		modDivider.setDivision(arg);
 
 		for (int c = 0; c < 16; c += 4) {
-			lfo1[c/4].setSampleRateReduction(modSampleRateReduction);
-			lfo2[c/4].setSampleRateReduction(modSampleRateReduction);
+			lfo1[c/4].setSampleRateReduction(arg);
+			lfo2[c/4].setSampleRateReduction(arg);
 
-			drift1[c/4].setSampleRateReduction(modSampleRateReduction);
+			drift1[c/4].setSampleRateReduction(arg);
 			drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
-			drift2[c/4].setSampleRateReduction(modSampleRateReduction);
+			drift2[c/4].setSampleRateReduction(arg);
 			drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
 		}
-		globalLfo.setSampleRateReduction(modSampleRateReduction);
+		globalLfo.setSampleRateReduction(arg);
+	}
+
+	void setFilterMethod(Method m)
+	{
+		filterMethod = m;
+		for (int c = 0; c < 16; c += 4)
+		{
+			filter1[c/4].setMethod(filterMethod);
+			filter2[c/4].setMethod(filterMethod);
+		}
 	}
 
 	void onReset(const ResetEvent& e) override
@@ -1362,7 +1373,10 @@ struct Synth : Module {
 		json_object_set_new(rootJ, "mixFilterBalances", mixFilterBalancesJ);
 
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
-		json_object_set_new(rootJ, "modSampleRateReduction", json_integer(modSampleRateReduction));
+		json_object_set_new(rootJ, "modSampleRateReduction", json_integer(modDivider.getDivision()));
+		json_object_set_new(rootJ, "uiSampleRateReduction", json_integer(uiDivider.getDivision()));
+		json_object_set_new(rootJ, "filterMethod", json_integer((int)filterMethod));
+		json_object_set_new(rootJ, "lockQualitySettings", json_boolean(lockQualitySettings));
 
 		// diverge
 		json_t* diverge1J = json_array();
@@ -1426,17 +1440,41 @@ struct Synth : Module {
 			}
 		}
 
-		json_t* oversamplingRateJ = json_object_get(rootJ, "oversamplingRate");
-		if (oversamplingRateJ)
+		if (lockQualitySettings != 1)
 		{
-			setOversamplingRate(json_integer_value(oversamplingRateJ));
+			json_t* oversamplingRateJ = json_object_get(rootJ, "oversamplingRate");
+			if (oversamplingRateJ)
+			{
+				setOversamplingRate(json_integer_value(oversamplingRateJ));
+			}
+
+			json_t* modSampleRateReductionJ = json_object_get(rootJ, "modSampleRateReduction");
+			if (modSampleRateReductionJ)
+			{
+				setModSampleRateReduction(json_integer_value(modSampleRateReductionJ));
+			}
+
+			json_t* uiSampleRateReductionJ = json_object_get(rootJ, "uiSampleRateReduction");
+			if (uiSampleRateReductionJ)
+			{
+				uiDivider.setDivision(json_integer_value(uiSampleRateReductionJ));
+			}
+
+			json_t* filterMethodJ = json_object_get(rootJ, "filterMethod");
+			if (filterMethodJ)
+			{
+				setFilterMethod((Method)json_integer_value(filterMethodJ));
+			}
 		}
 
-		json_t* modSampleRateReductionJ = json_object_get(rootJ, "modSampleRateReduction");
-		if (modSampleRateReductionJ)
+		if (lockQualitySettings == -1)
 		{
-			modSampleRateReduction = json_integer_value(modSampleRateReductionJ);
-			modDivider.setDivision(modSampleRateReduction);
+			// load lockQualitySettings only on initial load
+			json_t* lockQualitySettingsJ = json_object_get(rootJ, "lockQualitySettings");
+			if (lockQualitySettingsJ)
+			{
+				lockQualitySettings = json_boolean_value(lockQualitySettingsJ);
+			}
 		}
 
 		// diverge
@@ -1597,7 +1635,7 @@ struct SynthWidget : ModuleWidget {
 
 		menu->addChild(new MenuSeparator);
 
-		menu->addChild(createIndexSubmenuItem("Audio oversampling rate", {"1x", "2x", "4x", "8x", "16x"},
+		menu->addChild(createIndexSubmenuItem("Audio oversampling rate", {"1x (low CPU)", "2x", "4x", "8x", "16x (best quality)"},
 			[=]() {
 				return log2((int)module->oversamplingRate);
 			},
@@ -1606,23 +1644,47 @@ struct SynthWidget : ModuleWidget {
 			}
 		));
 
-		menu->addChild(createIndexSubmenuItem("Modulation sample rate reduction", {"1x", "2x", "4x", "8x"},
+		menu->addChild(createIndexSubmenuItem("Modulation sample rate reduction", {"1x (best quality)", "2x", "4x", "8x", "16x (low CPU)"},
 			[=]() {
-				return log2((int)module->modSampleRateReduction);
+				return log2((int)module->modDivider.getDivision());
 			},
 			[=](int mode) {
 				module->setModSampleRateReduction(std::pow(2, mode));
 			}
 		));
 
-		// TODO
-		// ui sample rate reduction
-		// filter solver
-		// lock quality settings
+		menu->addChild(createIndexSubmenuItem("UI sample rate reduction", {"1x (best quality)", "2x", "4x", "8x", "16x", "32x", "64x (low CPU)"},
+			[=]() {
+				return log2((int)module->uiDivider.getDivision());
+			},
+			[=](int mode) {
+				module->uiDivider.setDivision(std::pow(2, mode));
+			}
+		));
+
+		menu->addChild(createIndexSubmenuItem("Filter ODE Solver", FilterBlock::getOdeSolverLabels(),
+			[=]() {
+				return (int)module->filterMethod;
+			},
+			[=](int mode) {
+				module->setFilterMethod((Method)mode);
+			}
+		));
+
+		menu->addChild(createBoolMenuItem("Lock quality settings", "",
+			[=]() {
+				return module->lockQualitySettings == 1;
+			},
+			[=](int mode) {
+				module->lockQualitySettings = mode;
+			}
+		));
 
 		menu->addChild(new MenuSeparator);
 
-		// filter 1/2 integrator type
+		// TODO
+		// filter integrator type
+
 	}
 };
 

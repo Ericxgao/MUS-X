@@ -134,120 +134,85 @@ public:
 	{
 		switch (switchValue)
 		{
-		case 0:
-		case 1:
-		case 2:
-			filter1Pole_linear.setCutoffFreq(frequency);
-			filter1Pole_linear.setResonance(resonance);
-			break;
-		case 10:
-		case 11:
-		case 14:
-			filter1Pole_ota_tanh.setCutoffFreq(frequency);
-			filter1Pole_ota_tanh.setResonance(resonance);
-			break;
-		case 20:
-		case 21:
-		case 22:
-			filter1Pole_ota_alt.setCutoffFreq(frequency);
-			filter1Pole_ota_alt.setResonance(resonance);
-			break;
-		case 30:
-		case 31:
-		case 32:
-			filter1Pole_transistor_tanh.setCutoffFreq(frequency);
-			filter1Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 40:
-		case 41:
-		case 42:
-			filter1Pole_transistor_alt.setCutoffFreq(frequency);
-			filter1Pole_transistor_alt.setResonance(resonance);
-			break;
+		case   0:
+		case   1:
+		case   2:
 		case 100:
 		case 101:
 		case 102:
 			filter1Pole_linear.setCutoffFreq(frequency);
-			filter1Pole_linear.setResonance(resonance);
 			break;
+		case  10:
+		case  11:
+		case  12:
 		case 110:
 		case 111:
 		case 112:
 			filter1Pole_ota_tanh.setCutoffFreq(frequency);
-			filter1Pole_ota_tanh.setResonance(resonance);
 			break;
+		case  20:
+		case  21:
+		case  22:
+		case 120:
+		case 121:
+		case 122:
+			filter1Pole_ota_alt.setCutoffFreq(frequency);
+			break;
+		case  30:
+		case  31:
+		case  32:
+		case 130:
+		case 131:
+		case 132:
+			filter1Pole_transistor_tanh.setCutoffFreq(frequency);
+			break;
+		case  40:
+		case  41:
+		case  42:
 		case 140:
 		case 141:
 		case 142:
-			filter1Pole_ota_alt.setCutoffFreq(frequency);
-			filter1Pole_ota_alt.setResonance(resonance);
-			break;
-		case 150:
-		case 151:
-		case 152:
-			filter1Pole_transistor_tanh.setCutoffFreq(frequency);
-			filter1Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 160:
-		case 161:
-		case 162:
 			filter1Pole_transistor_alt.setCutoffFreq(frequency);
-			filter1Pole_transistor_alt.setResonance(resonance);
 			break;
 		case 200:
 		case 201:
 		case 202:
-			ladderFilter2Pole_linear.setCutoffFreq(frequency);
-			ladderFilter2Pole_linear.setResonance(resonance);
-			break;
-		case 210:
-		case 211:
-		case 212:
-			ladderFilter2Pole_ota_tanh.setCutoffFreq(frequency);
-			ladderFilter2Pole_ota_tanh.setResonance(resonance);
-			break;
-		case 220:
-		case 221:
-		case 222:
-			ladderFilter2Pole_ota_alt.setCutoffFreq(frequency);
-			ladderFilter2Pole_ota_alt.setResonance(resonance);
-			break;
-		case 230:
-		case 231:
-		case 232:
-			ladderFilter2Pole_transistor_tanh.setCutoffFreq(frequency);
-			ladderFilter2Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 240:
-		case 241:
-		case 242:
-			ladderFilter2Pole_transistor_alt.setCutoffFreq(frequency);
-			ladderFilter2Pole_transistor_alt.setResonance(resonance);
-			break;
 		case 300:
 		case 301:
 		case 302:
 			ladderFilter2Pole_linear.setCutoffFreq(frequency);
 			ladderFilter2Pole_linear.setResonance(resonance);
 			break;
+		case 210:
+		case 211:
+		case 212:
 		case 310:
 		case 311:
 		case 312:
 			ladderFilter2Pole_ota_tanh.setCutoffFreq(frequency);
 			ladderFilter2Pole_ota_tanh.setResonance(resonance);
 			break;
+		case 220:
+		case 221:
+		case 222:
 		case 320:
 		case 321:
 		case 322:
 			ladderFilter2Pole_ota_alt.setCutoffFreq(frequency);
 			ladderFilter2Pole_ota_alt.setResonance(resonance);
 			break;
+		case 230:
+		case 231:
+		case 232:
 		case 330:
 		case 331:
 		case 332:
 			ladderFilter2Pole_transistor_tanh.setCutoffFreq(frequency);
 			ladderFilter2Pole_transistor_tanh.setResonance(resonance);
 			break;
+		case 240:
+		case 241:
+		case 242:
 		case 340:
 		case 341:
 		case 342:
@@ -257,90 +222,69 @@ public:
 		case 400:
 		case 401:
 		case 402:
-			ladderFilter4Pole_linear.setCutoffFreq(frequency);
-			ladderFilter4Pole_linear.setResonance(resonance);
-			break;
-		case 410:
-		case 411:
-		case 412:
-			ladderFilter4Pole_ota_tanh.setCutoffFreq(frequency);
-			ladderFilter4Pole_ota_tanh.setResonance(resonance);
-			break;
-		case 420:
-		case 421:
-		case 422:
-			ladderFilter4Pole_ota_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_ota_alt.setResonance(resonance);
-			break;
-		case 430:
-		case 431:
-		case 432:
-			ladderFilter4Pole_transistor_tanh.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 440:
-		case 441:
-		case 442:
-			ladderFilter4Pole_transistor_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_alt.setResonance(resonance);
-			break;
 		case 500:
 		case 501:
 		case 502:
-			ladderFilter4Pole_linear.setCutoffFreq(frequency);
-			ladderFilter4Pole_linear.setResonance(resonance);
-			break;
-		case 510:
-		case 511:
-		case 512:
-			ladderFilter4Pole_ota_tanh.setCutoffFreq(frequency);
-			ladderFilter4Pole_ota_tanh.setResonance(resonance);
-			break;
-		case 520:
-		case 521:
-		case 522:
-			ladderFilter4Pole_ota_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_ota_alt.setResonance(resonance);
-			break;
-		case 530:
-		case 531:
-		case 532:
-			ladderFilter4Pole_transistor_tanh.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 540:
-		case 541:
-		case 542:
-			ladderFilter4Pole_transistor_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_alt.setResonance(resonance);
-			break;
 		case 600:
 		case 601:
 		case 602:
 			ladderFilter4Pole_linear.setCutoffFreq(frequency);
 			ladderFilter4Pole_linear.setResonance(resonance);
 			break;
+		case 410:
+		case 411:
+		case 412:
+		case 510:
+		case 511:
+		case 512:
 		case 610:
 		case 611:
 		case 612:
 			ladderFilter4Pole_ota_tanh.setCutoffFreq(frequency);
 			ladderFilter4Pole_ota_tanh.setResonance(resonance);
 			break;
+		case 420:
+		case 421:
+		case 422:
+		case 520:
+		case 521:
+		case 522:
 		case 620:
 		case 621:
 		case 622:
+		case 720:
+		case 721:
+		case 722:
 			ladderFilter4Pole_ota_alt.setCutoffFreq(frequency);
 			ladderFilter4Pole_ota_alt.setResonance(resonance);
 			break;
+		case 430:
+		case 431:
+		case 432:
+		case 530:
+		case 531:
+		case 532:
 		case 630:
 		case 631:
 		case 632:
+		case 730:
+		case 731:
+		case 732:
 			ladderFilter4Pole_transistor_tanh.setCutoffFreq(frequency);
 			ladderFilter4Pole_transistor_tanh.setResonance(resonance);
 			break;
+		case 440:
+		case 441:
+		case 442:
+		case 540:
+		case 541:
+		case 542:
 		case 640:
 		case 641:
 		case 642:
+		case 740:
+		case 741:
+		case 742:
 			ladderFilter4Pole_transistor_alt.setCutoffFreq(frequency);
 			ladderFilter4Pole_transistor_alt.setResonance(resonance);
 			break;
@@ -356,78 +300,45 @@ public:
 			ladderFilter4Pole_ota_tanh.setCutoffFreq(frequency);
 			ladderFilter4Pole_ota_tanh.setResonance(resonance);
 			break;
-		case 720:
-		case 721:
-		case 722:
-			ladderFilter4Pole_ota_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_ota_alt.setResonance(resonance);
-			break;
-		case 730:
-		case 731:
-		case 732:
-			ladderFilter4Pole_transistor_tanh.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_tanh.setResonance(resonance);
-			break;
-		case 740:
-		case 741:
-		case 742:
-			ladderFilter4Pole_transistor_alt.setCutoffFreq(frequency);
-			ladderFilter4Pole_transistor_alt.setResonance(resonance);
-			break;
 		case 800:
 		case 801:
 		case 802:
-			sallenKeyFilterLpBp_linear.setCutoffFreq(frequency);
-			sallenKeyFilterLpBp_linear.setResonance(resonance);
-			break;
-		case 810:
-		case 811:
-		case 812:
-			sallenKeyFilterLpBp_ota_tanh.setCutoffFreq(frequency);
-			sallenKeyFilterLpBp_ota_tanh.setResonance(resonance);
-			break;
-		case 820:
-		case 821:
-		case 822:
-			sallenKeyFilterLpBp_ota_alt.setCutoffFreq(frequency);
-			sallenKeyFilterLpBp_ota_alt.setResonance(resonance);
-			break;
-		case 830:
-		case 831:
-		case 832:
-			sallenKeyFilterLpBp_transistor_tanh.setCutoffFreq(frequency);
-			sallenKeyFilterLpBp_transistor_tanh.setResonance(resonance);
-			break;
-		case 840:
-		case 841:
-		case 842:
-			sallenKeyFilterLpBp_transistor_alt.setCutoffFreq(frequency);
-			sallenKeyFilterLpBp_transistor_alt.setResonance(resonance);
-			break;
 		case 900:
 		case 901:
 		case 902:
 			sallenKeyFilterLpBp_linear.setCutoffFreq(frequency);
 			sallenKeyFilterLpBp_linear.setResonance(resonance);
 			break;
+		case 810:
+		case 811:
+		case 812:
 		case 910:
 		case 911:
 		case 912:
 			sallenKeyFilterLpBp_ota_tanh.setCutoffFreq(frequency);
 			sallenKeyFilterLpBp_ota_tanh.setResonance(resonance);
 			break;
+		case 820:
+		case 821:
+		case 822:
 		case 920:
 		case 921:
 		case 922:
 			sallenKeyFilterLpBp_ota_alt.setCutoffFreq(frequency);
 			sallenKeyFilterLpBp_ota_alt.setResonance(resonance);
 			break;
+		case 830:
+		case 831:
+		case 832:
 		case 930:
 		case 931:
 		case 932:
 			sallenKeyFilterLpBp_transistor_tanh.setCutoffFreq(frequency);
 			sallenKeyFilterLpBp_transistor_tanh.setResonance(resonance);
 			break;
+		case 840:
+		case 841:
+		case 842:
 		case 940:
 		case 941:
 		case 942:
@@ -437,57 +348,42 @@ public:
 		case 1000:
 		case 1001:
 		case 1002:
-			sallenKeyFilterHp_linear.setCutoffFreq(frequency);
-			sallenKeyFilterHp_linear.setResonance(resonance);
-			break;
-		case 1010:
-		case 1011:
-		case 1012:
-			sallenKeyFilterHp_ota_tanh.setCutoffFreq(frequency);
-			sallenKeyFilterHp_ota_tanh.setResonance(resonance);
-			break;
-		case 1020:
-		case 1021:
-		case 1022:
-			sallenKeyFilterHp_ota_alt.setCutoffFreq(frequency);
-			sallenKeyFilterHp_ota_alt.setResonance(resonance);
-			break;
-		case 1030:
-		case 1031:
-		case 1032:
-			sallenKeyFilterHp_transistor_tanh.setCutoffFreq(frequency);
-			sallenKeyFilterHp_transistor_tanh.setResonance(resonance);
-			break;
-		case 1040:
-		case 1041:
-		case 1042:
-			sallenKeyFilterHp_transistor_alt.setCutoffFreq(frequency);
-			sallenKeyFilterHp_transistor_alt.setResonance(resonance);
-			break;
 		case 1100:
 		case 1101:
 		case 1102:
 			sallenKeyFilterHp_linear.setCutoffFreq(frequency);
 			sallenKeyFilterHp_linear.setResonance(resonance);
 			break;
+		case 1010:
+		case 1011:
+		case 1012:
 		case 1110:
 		case 1111:
 		case 1112:
 			sallenKeyFilterHp_ota_tanh.setCutoffFreq(frequency);
 			sallenKeyFilterHp_ota_tanh.setResonance(resonance);
 			break;
+		case 1020:
+		case 1021:
+		case 1022:
 		case 1120:
 		case 1121:
 		case 1122:
 			sallenKeyFilterHp_ota_alt.setCutoffFreq(frequency);
 			sallenKeyFilterHp_ota_alt.setResonance(resonance);
 			break;
+		case 1030:
+		case 1031:
+		case 1032:
 		case 1130:
 		case 1131:
 		case 1132:
 			sallenKeyFilterHp_transistor_tanh.setCutoffFreq(frequency);
 			sallenKeyFilterHp_transistor_tanh.setResonance(resonance);
 			break;
+		case 1040:
+		case 1041:
+		case 1042:
 		case 1140:
 		case 1141:
 		case 1142:
@@ -612,7 +508,7 @@ public:
 		case 11:
 			filter1Pole_ota_tanh.processRK2(in, dt);
 			return filter1Pole_ota_tanh.lowpass();
-		case 14:
+		case 12:
 			filter1Pole_ota_tanh.processRK4(in, dt);
 			return filter1Pole_ota_tanh.lowpass();
 		case 20:
@@ -660,31 +556,31 @@ public:
 		case 112:
 			filter1Pole_ota_tanh.processRK4(in, dt);
 			return filter1Pole_ota_tanh.highpass();
-		case 140:
+		case 120:
 			filter1Pole_ota_alt.processEuler(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 141:
+		case 121:
 			filter1Pole_ota_alt.processRK2(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 142:
+		case 122:
 			filter1Pole_ota_alt.processRK4(in, dt);
 			return filter1Pole_ota_alt.highpass();
-		case 150:
+		case 130:
 			filter1Pole_transistor_tanh.processEuler(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 151:
+		case 131:
 			filter1Pole_transistor_tanh.processRK2(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 152:
+		case 132:
 			filter1Pole_transistor_tanh.processRK4(in, dt);
 			return filter1Pole_transistor_tanh.highpass();
-		case 160:
+		case 140:
 			filter1Pole_transistor_alt.processEuler(in, dt);
 			return filter1Pole_transistor_alt.highpass();
-		case 161:
+		case 141:
 			filter1Pole_transistor_alt.processRK2(in, dt);
 			return filter1Pole_transistor_alt.highpass();
-		case 162:
+		case 142:
 			filter1Pole_transistor_alt.processRK4(in, dt);
 			return filter1Pole_transistor_alt.highpass();
 		case 200:
@@ -1302,7 +1198,7 @@ public:
 				in[i] = filter1Pole_ota_tanh.lowpass();
 			}
 			break;
-		case 14:
+		case 12:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_tanh.processRK4(in[i], dt);
@@ -1414,63 +1310,63 @@ public:
 				in[i] = filter1Pole_ota_tanh.highpass();
 			}
 			break;
-		case 140:
+		case 120:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processEuler(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 141:
+		case 121:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processRK2(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 142:
+		case 122:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_ota_alt.processRK4(in[i], dt);
 				in[i] = filter1Pole_ota_alt.highpass();
 			}
 			break;
-		case 150:
+		case 130:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processEuler(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 151:
+		case 131:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processRK2(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 152:
+		case 132:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_tanh.processRK4(in[i], dt);
 				in[i] = filter1Pole_transistor_tanh.highpass();
 			}
 			break;
-		case 160:
+		case 140:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processEuler(in[i], dt);
 				in[i] = filter1Pole_transistor_alt.highpass();
 			}
 			break;
-		case 161:
+		case 141:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processRK2(in[i], dt);
 				in[i] = filter1Pole_transistor_alt.highpass();
 			}
 			break;
-		case 162:
+		case 142:
 			for (int i = 0; i < oversamplingRate; ++i)
 			{
 				filter1Pole_transistor_alt.processRK4(in[i], dt);

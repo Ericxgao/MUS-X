@@ -261,7 +261,7 @@ struct Synth : Module {
 	musx::AntialiasedCheapSaturator<float_4> saturator1[4];
 	float_4 delayBuffer1[4][maxOversamplingRate] = {0.f};
 
-	int filter2CutoffMode = 0;
+	int filter2CutoffMode = 0; // 0: individual, 1: offset, 2: space
 	float_4 delayBuffer2[4][maxOversamplingRate] = {0.f};
 	musx::TOnePole<float_4> dcBlocker2[4];
 	musx::AliasReductionFilter<float_4> aliasFilter2[4];
@@ -547,6 +547,8 @@ struct Synth : Module {
 
 				param->bipolar = true;
 				param->color = SCHEME_BLUE;
+
+				getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 			}
 			// config knobs when source assign is off
 			else
@@ -557,6 +559,26 @@ struct Synth : Module {
 
 				switch(ENV1_A_PARAM + i)
 				{
+				case ENV1_A_PARAM:
+				case ENV1_D_PARAM:
+				case ENV1_R_PARAM:
+				case ENV2_A_PARAM:
+				case ENV2_D_PARAM:
+				case ENV2_R_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+							destinationLabel,
+							" ms", LAMBDA_BASE, MIN_TIME * 1000.0);
+					param->bipolar = false;
+					getParam(ENV1_A_PARAM + i).setValue(0.1f * modMatrix[i][activeSourceAssign]);
+					break;
+				case LFO1_FREQ_PARAM:
+				case LFO2_FREQ_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+							destinationLabel,
+							" Hz", 2.f, 2.f);
+					param->bipolar = false;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
+					break;
 				case OSC1_TUNE_SEMI_PARAM:
 				case OSC2_TUNE_SEMI_PARAM:
 					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -12.f, 12.f, 0.f,
@@ -565,38 +587,56 @@ struct Synth : Module {
 					param->bipolar = true;
 					param->snapEnabled = true;
 					param->smoothEnabled = false;
+					getParam(ENV1_A_PARAM + i).setValue(12.f / 5.f * modMatrix[i][activeSourceAssign]);
 					break;
 				case OSC1_TUNE_FINE_PARAM:
+				case OSC2_TUNE_FINE_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+							destinationLabel,
+							" cents", 0, 20.f);
+					param->bipolar = true;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
+					break;
+				case FILTER1_CUTOFF_PARAM:
+				case FILTER2_CUTOFF_PARAM:
+					if (ENV1_A_PARAM + i == FILTER2_CUTOFF_PARAM && filter2CutoffMode)
+					{
+						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.5f,
+								destinationLabel,
+								" %", 0, 200.f, -100.f);
+						param->bipolar = true;
+					}
+					else
+					{
+						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+								destinationLabel,
+								" Hz", filterMaxFreq / filterMinFreq, filterMinFreq);
+						param->bipolar = false;
+					}
+					getParam(ENV1_A_PARAM + i).setValue(0.1f * modMatrix[i][activeSourceAssign]);
+					break;
 				case INDIVIDUAL_MOD_OUT_1_PARAM:
 				case INDIVIDUAL_MOD_OUT_2_PARAM:
 				case INDIVIDUAL_MOD_OUT_3_PARAM:
 				case INDIVIDUAL_MOD_OUT_4_PARAM:
 				case INDIVIDUAL_MOD_OUT_5_PARAM:
 				case OSC2_TUNE_GLIDE_PARAM:
-				case OSC2_TUNE_FINE_PARAM:
 				case FILTER1_PAN_PARAM:
 				case FILTER2_PAN_PARAM:
 					// bipolar
 					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel,
-							" %", 0, 20.f); // TODO proper unit label ?
+							" %", 0, 20.f);
 					param->bipolar = true;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 					break;
 				default:
 					// unipolar
 					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 0.f,
 							destinationLabel,
-							" %", 0, 10.f); // TODO proper unit label ?
+							" %", 0, 10.f);
 					param->bipolar = false;
-				}
-
-				if (ENV1_A_PARAM + i == FILTER2_CUTOFF_PARAM && filter2CutoffMode)
-				{
-					// bipolar
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 5.f,
-							destinationLabel,
-							" %", 0, 20.f, -100.f); // TODO proper unit label ?
-					param->bipolar = true;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 				}
 
 				param->color = SCHEME_GREEN;
@@ -615,7 +655,6 @@ struct Synth : Module {
 					}
 				}
 			}
-			getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 		}
 
 		for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
@@ -940,10 +979,27 @@ struct Synth : Module {
 			// update mod matrix elements
 			for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
 			{
-				if (activeSourceAssign == 0 &&
-						(ENV1_A_PARAM + i == OSC1_TUNE_SEMI_PARAM || ENV1_A_PARAM + i == OSC2_TUNE_SEMI_PARAM))
+				if (activeSourceAssign == 0)
 				{
-					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 5.f / 12.f;
+					switch (ENV1_A_PARAM + i)
+					{
+					case ENV1_A_PARAM:
+					case ENV1_D_PARAM:
+					case ENV1_R_PARAM:
+					case ENV2_A_PARAM:
+					case ENV2_D_PARAM:
+					case ENV2_R_PARAM:
+					case FILTER1_CUTOFF_PARAM:
+					case FILTER2_CUTOFF_PARAM:
+						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 10.f;
+						break;
+					case OSC1_TUNE_SEMI_PARAM:
+					case OSC2_TUNE_SEMI_PARAM:
+						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 5.f / 12.f;
+						break;
+					default:
+						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+					}
 				}
 				else
 				{
@@ -1134,11 +1190,11 @@ struct Synth : Module {
 				env2[c/4].setReleaseTime(0.1f * modMatrixOutputs[ENV2_R_PARAM - ENV1_A_PARAM][c/4]);
 
 				lfo1[c/4].setRand(noise1);
-				lfo1[c/4].setFrequencyVOct(modMatrixOutputs[LFO1_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+				lfo1[c/4].setFrequencyVOct(modMatrixOutputs[LFO1_FREQ_PARAM - ENV1_A_PARAM][c/4]);
 				lfo1[c/4].setAmp(modMatrixOutputs[LFO1_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
 
 				lfo2[c/4].setRand(noise2);
-				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4] - 5.f);
+				lfo2[c/4].setFrequencyVOct(modMatrixOutputs[LFO2_FREQ_PARAM - ENV1_A_PARAM][c/4]);
 				lfo2[c/4].setAmp(modMatrixOutputs[LFO2_AMOUNT_PARAM - ENV1_A_PARAM][c/4]);
 
 				outputs[INDIVIDUAL_MOD_1_OUTPUT].setVoltageSimd(modMatrixOutputs[INDIVIDUAL_MOD_OUT_1_PARAM - ENV1_A_PARAM][c/4], c);

@@ -579,6 +579,15 @@ struct Synth : Module {
 					param->bipolar = false;
 					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 					break;
+				case OSC1_TUNE_GLIDE_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+							destinationLabel,
+							" ms",
+							getGlideFreq(0.f, 40000.f)[0] / getGlideFreq(10.f, 40000.f)[0],
+							modDivider.getDivision() / (40000.f * getGlideFreq(0.f, 40000.f)[0]) * 183.939720586f);
+					param->bipolar = false;
+					getParam(ENV1_A_PARAM + i).setValue(0.1f * modMatrix[i][activeSourceAssign]);
+					break;
 				case OSC1_TUNE_SEMI_PARAM:
 				case OSC2_TUNE_SEMI_PARAM:
 					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -12.f, 12.f, 0.f,
@@ -989,6 +998,7 @@ struct Synth : Module {
 					case ENV2_A_PARAM:
 					case ENV2_D_PARAM:
 					case ENV2_R_PARAM:
+					case OSC1_TUNE_GLIDE_PARAM:
 					case FILTER1_CUTOFF_PARAM:
 					case FILTER2_CUTOFF_PARAM:
 						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 10.f;
@@ -1582,7 +1592,7 @@ private:
 		const float glideScale = 1.5f;
 		float_4 glideFreq = clamp(10.f - glideValue, 0.f, 10.f); // 10..0
 		glideFreq = dsp::exp2_taylor5(glideScale * glideFreq) / dsp::exp2_taylor5(glideScale * 10.f); // 1..0
-		glideFreq *= modDivider.getDivision() / sampleRate * 4096.f;
+		glideFreq *= modDivider.getDivision() / sampleRate * 1000.f;
 		return glideFreq;
 	}
 };

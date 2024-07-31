@@ -1332,13 +1332,14 @@ struct Synth : Module {
 
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
+		json_t* entryJ;
 
 		json_t* modMatrixJ = json_array();
 		for (size_t iDest = 0; iDest < nDestinations; iDest++)
 		{
 			for (size_t iSource = 0; iSource < nSources; iSource++)
 			{
-				json_t* entryJ = json_real(modMatrix[iDest][iSource]);
+				entryJ = json_real(modMatrix[iDest][iSource]);
 				json_array_insert_new(modMatrixJ, iDest * nSources + iSource, entryJ);
 			}
 		}
@@ -1363,12 +1364,26 @@ struct Synth : Module {
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
 		json_object_set_new(rootJ, "modSampleRateReduction", json_integer(modSampleRateReduction));
 
-		// TODO diverge
+		// diverge
+		json_t* diverge1J = json_array();
+		json_t* diverge2J = json_array();
+		for (size_t c = 0; c < 16; c++)
+		{
+			entryJ = json_real(drift1[c/4].getDiverge()[c % 4]);
+			json_array_insert_new(diverge1J, c, entryJ);
+
+			entryJ = json_real(drift2[c/4].getDiverge()[c % 4]);
+			json_array_insert_new(diverge2J, c, entryJ);
+		}
+		json_object_set_new(rootJ, "diverge1", diverge1J);
+		json_object_set_new(rootJ, "diverge2", diverge2J);
 
 		return rootJ;
 	}
 
 	void dataFromJson(json_t* rootJ) override {
+		json_t* entryJ;
+
 		json_t* modMatrixJ = json_object_get(rootJ, "modMatrix");
 		if (modMatrixJ)
 		{
@@ -1376,7 +1391,7 @@ struct Synth : Module {
 			{
 				for (size_t iSource = 0; iSource < nSources; iSource++)
 				{
-					json_t* entryJ = json_array_get(modMatrixJ, iDest * nSources + iSource);
+					entryJ = json_array_get(modMatrixJ, iDest * nSources + iSource);
 					if (entryJ)
 					{
 						modMatrix[iDest][iSource] = json_real_value(entryJ);
@@ -1424,7 +1439,26 @@ struct Synth : Module {
 			modDivider.setDivision(modSampleRateReduction);
 		}
 
-		// TODO diverge
+		// diverge
+		json_t* diverge1J = json_object_get(rootJ, "diverge1");
+		json_t* diverge2J = json_object_get(rootJ, "diverge2");
+		if (diverge1J && diverge2J)
+		{
+			for (size_t c = 0; c < 16; c++)
+			{
+				entryJ = json_array_get(diverge1J, c);
+				if (entryJ)
+				{
+					drift1[c/4].setDiverge(json_real_value(entryJ), c % 4);
+				}
+				entryJ = json_array_get(diverge2J, c);
+				if (entryJ)
+				{
+					drift2[c/4].setDiverge(json_real_value(entryJ), c % 4);
+				}
+			}
+		}
+
 
 		configureUi();
 	}

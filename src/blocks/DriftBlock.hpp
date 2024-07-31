@@ -38,6 +38,11 @@ public:
 		diverge = d;
 	}
 
+	void setDiverge(float d, size_t i)
+	{
+		diverge[i] = d;
+	}
+
 	float_4 getDiverge()
 	{
 		return diverge;

@@ -266,6 +266,10 @@ struct Synth : Module {
 	musx::FilterBlock filter2[4];
 	musx::AntialiasedCheapSaturator<float_4> saturator2[4];
 
+	// misc
+	bool doRandomize = false;
+	bool doReset = false;
+
 	Synth() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		configParam(ENV1_VEL_PARAM, 0.f, 1.f, 0.f, "Envelope 1 velocity scaling", " %", 0, 100);
@@ -284,7 +288,9 @@ struct Synth : Module {
 		getParamQuantity(OSC2_TUNE_OCT_PARAM)->smoothEnabled = false;
 		configSwitch(OSC_TUNE_GLIDE_FINGERED_PARAM, 0,   1,   0,  "Fingered glide", {"Off", "On"});
 		configSwitch(OSC_SYNC_PARAM, 0,   1,   0,  "Sync", {"Off", "Sync oscillator 2 to oscillator 1"});
-		configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"})->ParamQuantity::randomizeEnabled = false;
+		SwitchQuantity* sq = configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"});
+		sq->ParamQuantity::randomizeEnabled = false;
+		sq->ParamQuantity::resetEnabled = false;
 		configSwitch(FILTER1_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 1 mode", FilterBlock::getModeLabels());
 		configSwitch(FILTER2_CUTOFF_MODE_PARAM, 0, 2, 0, "Filter 2 cutoff mode", {"individual", "offset", "space"});
 		configSwitch(FILTER2_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 2 mode", FilterBlock::getModeLabels());
@@ -877,10 +883,10 @@ struct Synth : Module {
 		}
 
 
+		bool reconfigureUi = false;
 		bool newOscMixRouteActive = params[OSC_MIX_ROUTE_PARAM].getValue() > 0.5f;
 
 		// adapt UI if activeSourceAssign or oscMixRouteActive have changed
-		bool reconfigureUi = false;
 		if (activeSourceAssign != newActiveSourceAssign ||
 				oscMixRouteActive != newOscMixRouteActive ||
 				filter2CutoffMode != (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue())
@@ -890,6 +896,25 @@ struct Synth : Module {
 			filter2CutoffMode = (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue();
 			reconfigureUi = true;
 			configureUi();
+		}
+
+		// reset / randomize when no activeSourceAssign
+		if (doReset)
+		{
+			if (activeSourceAssign == 0)
+			{
+				ResetEvent e;
+				Module::onReset(e);
+			}
+		}
+
+		if (doRandomize)
+		{
+			if (activeSourceAssign == 0)
+			{
+				RandomizeEvent e;
+				Module::onRandomize(e);
+			}
 		}
 
 		// update mod matrix elements
@@ -936,6 +961,37 @@ struct Synth : Module {
 			for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
 			{
 				modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+			}
+		}
+
+		// reset / randomize when activeSourceAssign is active
+		if (doReset)
+		{
+			doReset = false;
+			reconfigureUi = true;
+
+			if (activeSourceAssign > 0)
+			{
+				// reset only modulation assignments when activeSourceAssign
+				for (size_t iDest = 0; iDest < nDestinations; iDest++)
+				{
+					modMatrix[iDest][activeSourceAssign] = 0.f;
+				}
+			}
+		}
+
+		if (doRandomize)
+		{
+			doRandomize = false;
+			reconfigureUi = true;
+
+			if (activeSourceAssign > 0)
+			{
+				// randomize only modulatable params when activeSourceAssign
+				for (size_t iDest = 0; iDest < nDestinations; iDest++)
+				{
+					modMatrix[iDest][activeSourceAssign] = 2.f * rack::random::uniform() - 1.f;
+				}
 			}
 		}
 
@@ -1073,42 +1129,14 @@ struct Synth : Module {
 
 	void onReset(const ResetEvent& e) override
 	{
-		if (activeSourceAssign == 0)
-		{
-			// TODO does not always work, does not reset filter mix routing
-			Module::onReset(e);
-			processUi();
-			configureUi();
-		}
-		else
-		{
-			// reset only modulation assignments when activeSourceAssign
-			for (size_t iDest = 0; iDest < nDestinations; iDest++)
-			{
-				modMatrix[iDest][activeSourceAssign] = 0.f;
-			}
-			configureUi();
-		}
+		// reset later in audio thread instead of here in UI thread
+		doReset = true;
 	}
 
 	void onRandomize(const RandomizeEvent& e) override
 	{
-		if (activeSourceAssign == 0)
-		{
-			// TODO does not always work
-			Module::onRandomize(e);
-			processUi();
-			configureUi();
-		}
-		else
-		{
-			// randomize only modulatable params when activeSourceAssign
-			for (size_t iDest = 0; iDest < nDestinations; iDest++)
-			{
-				modMatrix[iDest][activeSourceAssign] = 2.f * rack::random::uniform() - 1.f;
-			}
-			configureUi();
-		}
+		// randomize later in audio thread instead of here in UI thread
+		doRandomize = true;
 	}
 
 	void process(const ProcessArgs& args) override {

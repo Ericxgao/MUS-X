@@ -41,18 +41,19 @@ The 'Poly' input determines the polyphony channels of the output.
 ## Filter
 A collection of filters.
 * 'Cutoff' sets the filter cutoff frequency.
-* 'Reso' sets the filter resonance.
-* 'Mode' sets the filter type. A selection if ladder and Sallen-Key filters are available.
+* 'Reso' sets the filter resonance, or the drive when a diode clipper is selected.
+* 'Mode' sets the filter type. A selection of ladder filters, Sallen-Key filters, comb filters and diode clippers are available.
+* The 'Mode' can also be set to bypass (if enabled, the 'Post-filter Saturator' will still be active) or mute.
 
 ### Context menu options
 * 'Oversampling rate' sets the internal oversampling rate.
-* 'ODE Solver': The filters are implemented with differential equations, which are solved with numerical methods. 4th order Runkge-Kutta is recommended, the other options use less CPU, but are also much less accurate.
+* 'ODE Solver': The filters are implemented with differential equations, which are solved with numerical methods. 4th order Runkge-Kutta is recommended, the other options use less CPU, but are also less accurate.
 * 'Integrator type': This affects the placement of the nonlinearities nl() in the integrators:
 	* Linear: dx/dt = ω (in - x)
 	* OTA: dx/dt = ω nl(in - x)
 	* Transistor: dx/dt = ω (nl(in) - nl(x))
-* 'Nonlinearity type': the function used as nonlinearity.
-* 'Saturator' limits the output to around ±10V.
+* OTA and Transistor are available with a tanh() nonlinearity, and an alternative softer saturator.
+* 'Post-filter Saturator' limits the output to around ±10V.
 
 ## Last
 A utility module, which allows to map multiple sources to one destination.
@@ -133,6 +134,66 @@ With no oversampling, the oscillators alias a lot.
 * 'DC blocker': FM and the ring modulator can create a DC offset. Therefore, a DC blocker is enabled by default, but can be disabled in the context menu.
 * 'Saturator' limits the output to around ±10V.
 * 'LFO mode' lets you use the module as an LFO. It lowers the frequencies of the oscillators to 2 Hz @ 0V, and internally disables oversampling and the DC blocker.
+
+## Synth
+A virtual-analogue polyphonic synthesizer with 2 oscillators, dual filters and unique modulation system.
+
+### Motivation
+There is no shortage of virtual analogue synthesizers, both in hardware and software. Why did I create a new one?
+The point of this synthesizer is its unique modulation system.
+
+In most other synthesizers, part of the modulation is hardcoded (e.g. V/Oct to oscillator pitch, envelope to amp), part is directly accessible from the panel (e.g. envelope to filter cutoff), others are hidden in menus (e.g. pitch bend range).
+Some synthesizers have a vintage knob, which applies a predetermined amount of diverge and drift to certain parameters.
+And many synthesizers have a separate modulation matrix with a limited number of entries.
+Often, this mod matrix seems like an afterthought. You have a nice knob to control the filter cutoff, but in order to modulate it from the matrix, you have to select filter cutoff as a destination from a menu, and dial in the amount with some encoder. Why not use the nice filter cutoff knob also to control the modulation depth?
+
+Here I unified and streamlined the modulation system. There are almost no hardcoded connections, and every source can modulate every destination at the same time. 
+Applying a modulation source to a destination is straightforward: press a button, turn a knob.
+There are 22 modulation sources, and 50 destinations. That means there is a 1100-slot modulation matrix at your fingertips.
+
+I also find synthesizers with a single filter kind of boring, so I added two filters, with many filter types to chose from.
+
+Since this synthesizer lives inside Rack, it does not have to be a fully self contained synth.
+Therefore I deliberately did not add effects, sequencers, an arpeggiator, or voice modes like mono, legato, stack, chord mode etc.
+Rack has plenty of options for those, and the modulation system allows external modulation sources to be included easily, as well as to modulate external modules with the 5 individual modulation outputs.
+
+### Overview
+On the left side are the (modulation) inputs, on the right side are 5 modulation outputs which can be used to modulate other modules, like a third oscillator or effects.
+In the top half are the internal modulation sources: two envelopes, two per-voice LFOs and a global LFO, and two diverge and drift generators.
+In the bottom half is the audio path, consisting of two oscillators with FM and ring modulator, a mixer, two filters and an amp.
+
+### Modulation system
+All parameters with a ring around them can be modulated. When no assign button is active, the base values of the parameters can be adjusted, and a green ring shows the current value.
+If 'Mix Route' is active, a red ring is shown in the mixer section.
+
+Every modulation source has one or more assign buttons. Once an assign button is pressed, it is active and lit bright blue.
+The modulation depths for each parameter can be adjusted, the modulation depth is shown with a blue ring.
+If 'Mix Route' is active, a purple ring is shown in the mixer section.
+By clicking on the assign button once again, the synthesizer goes back into base mode.
+
+The assign buttons are dimly lit, if any modulations are active. Hovering a button with the mouse shows all modulation destinations which are affected. 
+
+If a parameter is modulated, a little light below the knob is lit. Hovering a knob with the mouse shows all modulation sources which affect the parameter.
+
+In base mode, Racks 'initialize' and 'randomize' functions only change the base values and non-modulatable parameters.
+When an assign button is active, 'initialize' and 'randomize' only affect the modulation assignments for the active modulation source.
+
+#### Caveats
+Some modulation assignments have to be made in order for Synth to behave 'normally':
+- V/Oct modulates Osc 1 and 2 semi by 100%
+- An Envelope or Gate modulates amp by 100%
+- For pitch bend, I recommend to turn the pitch bend range in the 'MIDI to CV' module to 'Off', and modulate Osc 1 and 2 semi from 'PW' by 2 semitones
+
+### Signal path
+There are 6 audio sources: oscillator 1 and sub-oscillator, ring modulator (multiplication of oscillator 1 and 2), noise, oscillator 2, and external input. If no external input is connected, 'Ext' controls the loopback of the mono signal before the amp.
+
+The volume for each source can be adjusted and modulated.
+When the 'Mix Route' button is active, each source can be routed to filter 1 (-100%), filter 2 (100%) or anything in between.
+The routing can also be modulated.
+
+So there are effectively two mix buses, for filter 1 and filter 2.
+
+The filters can be operated in serial (the output of filter 1 is added to the filter 2 mix bus, filter 1 is not routed to the amp, and filter 1 pan has no effect), or in parallel, or anything in between.
 
 ## Tune
 Tune by octaves, plus coarse and fine (1 semitone) tuning.

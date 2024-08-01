@@ -10,8 +10,6 @@
 #include "dsp/decimator.hpp"
 #include "dsp/filters.hpp"
 
-#include <iostream>
-
 namespace musx {
 
 using namespace rack;
@@ -617,7 +615,7 @@ struct Synth : Module {
 					}
 					else
 					{
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 1.f,
 								destinationLabel,
 								" Hz", filterMaxFreq / filterMinFreq, filterMinFreq);
 						param->bipolar = false;
@@ -637,6 +635,25 @@ struct Synth : Module {
 							destinationLabel,
 							" %", 0, 20.f);
 					param->bipolar = true;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
+					break;
+				case ENV1_S_PARAM:
+				case ENV2_S_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 10.f,
+							destinationLabel,
+							" %", 0, 10.f);
+					param->bipolar = false;
+					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
+					break;
+				case OSC1_SHAPE_PARAM:
+				case OSC1_PW_PARAM:
+				case OSC2_SHAPE_PARAM:
+				case OSC2_PW_PARAM:
+				case AMP_VOL_PARAM:
+					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 5.f,
+							destinationLabel,
+							" %", 0, 10.f);
+					param->bipolar = false;
 					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 					break;
 				default:
@@ -717,7 +734,7 @@ struct Synth : Module {
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.5f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " volume",
 							" %", 0, 100.);
 

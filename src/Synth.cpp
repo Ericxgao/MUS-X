@@ -284,7 +284,7 @@ struct Synth : Module {
 		getParamQuantity(OSC2_TUNE_OCT_PARAM)->smoothEnabled = false;
 		configSwitch(OSC_TUNE_GLIDE_FINGERED_PARAM, 0,   1,   0,  "Fingered glide", {"Off", "On"});
 		configSwitch(OSC_SYNC_PARAM, 0,   1,   0,  "Sync", {"Off", "Sync oscillator 2 to oscillator 1"});
-		configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"});
+		configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"})->ParamQuantity::randomizeEnabled = false;
 		configSwitch(FILTER1_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 1 mode", FilterBlock::getModeLabels());
 		configSwitch(FILTER2_CUTOFF_MODE_PARAM, 0, 2, 0, "Filter 2 cutoff mode", {"individual", "offset", "space"});
 		configSwitch(FILTER2_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 2 mode", FilterBlock::getModeLabels());
@@ -474,11 +474,11 @@ struct Synth : Module {
 
 			if (isModulating)
 			{
-				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {modulatesLabel, "active" + modulatesLabel});
+				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {modulatesLabel, "active" + modulatesLabel})->ParamQuantity::randomizeEnabled = false;
 			}
 			else
 			{
-				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"", "active"});
+				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"", "active"})->ParamQuantity::randomizeEnabled = false;
 			}
 
 			if (iSource + 1 == activeSourceAssign)
@@ -734,7 +734,7 @@ struct Synth : Module {
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.5f,
+					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " volume",
 							" %", 0, 100.);
 
@@ -746,7 +746,8 @@ struct Synth : Module {
 				{
 					std::string destinationLabel = destinationLabels[i];
 					destinationLabel[0] = toupper(destinationLabel[0]);
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 0.f,
+					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f,
+							(i == nDestinations - 2 * nMixChannels) ? 5.f : 0.f,
 							destinationLabel + " volume",
 							" %", 0, 10.);
 
@@ -841,6 +842,165 @@ struct Synth : Module {
 		}
 	}
 
+	void processUi()
+	{
+		channels = std::max(1, inputs[VOCT_INPUT].getChannels());
+
+		outputs[INDIVIDUAL_MOD_1_OUTPUT].setChannels(channels);
+		outputs[INDIVIDUAL_MOD_2_OUTPUT].setChannels(channels);
+		outputs[INDIVIDUAL_MOD_3_OUTPUT].setChannels(channels);
+		outputs[INDIVIDUAL_MOD_4_OUTPUT].setChannels(channels);
+		outputs[INDIVIDUAL_MOD_5_OUTPUT].setChannels(channels);
+
+		// update activeSourceAssign and oscMixRouteActive
+		size_t newActiveSourceAssign = 0;
+		for (size_t i = 0; i < ENV1_A_PARAM; i++)
+		{
+			if (params[i].getValue() && i + 1 != activeSourceAssign)
+			{
+				newActiveSourceAssign = i + 1;
+				break;
+			}
+		}
+		if (newActiveSourceAssign == 0 && params[activeSourceAssign - 1].getValue())
+		{
+			newActiveSourceAssign = activeSourceAssign;
+		}
+
+		// switch off other source assign buttons
+		for (size_t i = 0; i < ENV1_A_PARAM; i++)
+		{
+			if (i + 1 != newActiveSourceAssign)
+			{
+				params[i].setValue(0);
+			}
+		}
+
+
+		bool newOscMixRouteActive = params[OSC_MIX_ROUTE_PARAM].getValue() > 0.5f;
+
+		// adapt UI if activeSourceAssign or oscMixRouteActive have changed
+		bool reconfigureUi = false;
+		if (activeSourceAssign != newActiveSourceAssign ||
+				oscMixRouteActive != newOscMixRouteActive ||
+				filter2CutoffMode != (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue())
+		{
+			activeSourceAssign = newActiveSourceAssign;
+			oscMixRouteActive = newOscMixRouteActive;
+			filter2CutoffMode = (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue();
+			reconfigureUi = true;
+			configureUi();
+		}
+
+		// update mod matrix elements
+		for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
+		{
+			if (activeSourceAssign == 0)
+			{
+				switch (ENV1_A_PARAM + i)
+				{
+				case ENV1_A_PARAM:
+				case ENV1_D_PARAM:
+				case ENV1_R_PARAM:
+				case ENV2_A_PARAM:
+				case ENV2_D_PARAM:
+				case ENV2_R_PARAM:
+				case OSC1_TUNE_GLIDE_PARAM:
+				case FILTER1_CUTOFF_PARAM:
+				case FILTER2_CUTOFF_PARAM:
+					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 10.f;
+					break;
+				case OSC1_TUNE_SEMI_PARAM:
+				case OSC2_TUNE_SEMI_PARAM:
+					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 5.f / 12.f;
+					break;
+				default:
+					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+				}
+			}
+			else
+			{
+				modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+			}
+		}
+
+		if (oscMixRouteActive)
+		{
+			for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
+			{
+				modMatrix[i + nMixChannels][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+			}
+		}
+		else
+		{
+			for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
+			{
+				modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
+			}
+		}
+
+		// update mustCalculateDestination
+		for (size_t iDest = 0; iDest < nDestinations; iDest++)
+		{
+			bool oldMustCalculateDestination = mustCalculateDestination[iDest];
+			mustCalculateDestination[iDest] = false;
+			for (size_t iSource = 1; iSource < nSources; iSource++)
+			{
+				if (modMatrix[iDest][iSource] != 0.f)
+				{
+					mustCalculateDestination[iDest] = true;
+					break;
+				}
+			}
+
+			reconfigureUi |= oldMustCalculateDestination != mustCalculateDestination[iDest];
+		}
+
+		if (reconfigureUi)
+		{
+			// configure UI again to set tooltips
+			configureUi();
+		}
+
+
+		// set non-modulatable parameters
+		for (int c = 0; c < channels; c += 4) {
+			if (channels < 2)
+			{
+				modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4] = 0.f;
+			}
+			else
+			{
+				for (int iChannel = c; iChannel < std::min(channels, c + 4); iChannel++)
+				{
+					modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4][iChannel - c] = 10.f * ((iChannel) / (channels - 1.f)) - 5.f;
+				}
+			}
+
+			env1[c/4].setVelocityScaling(getParam(ENV1_VEL_PARAM).getValue());
+			env2[c/4].setVelocityScaling(getParam(ENV2_VEL_PARAM).getValue());
+
+			lfo1[c/4].setShape(getParam(LFO1_SHAPE_PARAM).getValue());
+			lfo1[c/4].setSingleCycle(getParam(LFO1_MODE_PARAM).getValue() == 2);
+			lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
+			lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
+
+			drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+			drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
+
+			oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
+
+			filter1[c/4].setMode(getParam(FILTER1_MODE_PARAM).getValue());
+			filter2[c/4].setMode(getParam(FILTER2_MODE_PARAM).getValue());
+		}
+		globalLfo.setFrequencyVOct(getParam(GLOBAL_LFO_FREQ_PARAM).getValue());
+
+
+		// lights
+		lights[OSC_TUNE_GLIDE_FINGERED_LIGHT].setBrightness(getParam(OSC_TUNE_GLIDE_FINGERED_PARAM).getValue());
+		lights[OSC_SYNC_LIGHT].setBrightness(getParam(OSC_SYNC_PARAM).getValue());
+	}
+
 	void onSampleRateChange(const SampleRateChangeEvent& e) override {
 		sampleRate = e.sampleRate;
 		for (int c = 0; c < 16; c += 4) {
@@ -913,39 +1073,42 @@ struct Synth : Module {
 
 	void onReset(const ResetEvent& e) override
 	{
-		// reset only modulation assignments when activeSourceAssign
-		for (size_t iDest = 0; iDest < nDestinations; iDest++)
-		{
-			modMatrix[iDest][activeSourceAssign] = 0.f;
-		}
 		if (activeSourceAssign == 0)
 		{
-			Module::onReset(e); // TODO need sensible default parameters!
+			// TODO does not always work, does not reset filter mix routing
+			Module::onReset(e);
+			processUi();
+			configureUi();
 		}
-
-		configureUi();
+		else
+		{
+			// reset only modulation assignments when activeSourceAssign
+			for (size_t iDest = 0; iDest < nDestinations; iDest++)
+			{
+				modMatrix[iDest][activeSourceAssign] = 0.f;
+			}
+			configureUi();
+		}
 	}
 
 	void onRandomize(const RandomizeEvent& e) override
 	{
-		// do not randomize assign and osc mix buttons
-		float assignButtonValues[ENV1_A_PARAM];
-		for (size_t i = 0; i < ENV1_A_PARAM; i++)
+		if (activeSourceAssign == 0)
 		{
-			assignButtonValues[i] = getParam(i).getValue();
+			// TODO does not always work
+			Module::onRandomize(e);
+			processUi();
+			configureUi();
 		}
-		float mixButtonValue = getParam(OSC_MIX_ROUTE_PARAM).getValue();
-
-		Module::onRandomize(e);
-
-		// TODO randomize only modulatable params when activeSourceAssign
-
-		for (size_t i = 0; i < ENV1_A_PARAM; i++)
+		else
 		{
-			getParam(i).setValue(assignButtonValues[i]);
+			// randomize only modulatable params when activeSourceAssign
+			for (size_t iDest = 0; iDest < nDestinations; iDest++)
+			{
+				modMatrix[iDest][activeSourceAssign] = 2.f * rack::random::uniform() - 1.f;
+			}
+			configureUi();
 		}
-
-		getParam(OSC_MIX_ROUTE_PARAM).setValue(mixButtonValue);
 	}
 
 	void process(const ProcessArgs& args) override {
@@ -954,161 +1117,7 @@ struct Synth : Module {
 
 		if (uiDivider.process())
 		{
-			channels = std::max(1, inputs[VOCT_INPUT].getChannels());
-
-			outputs[INDIVIDUAL_MOD_1_OUTPUT].setChannels(channels);
-			outputs[INDIVIDUAL_MOD_2_OUTPUT].setChannels(channels);
-			outputs[INDIVIDUAL_MOD_3_OUTPUT].setChannels(channels);
-			outputs[INDIVIDUAL_MOD_4_OUTPUT].setChannels(channels);
-			outputs[INDIVIDUAL_MOD_5_OUTPUT].setChannels(channels);
-
-			// update activeSourceAssign and oscMixRouteActive
-			size_t newActiveSourceAssign = 0;
-			for (size_t i = 0; i < ENV1_A_PARAM; i++)
-			{
-				if (params[i].getValue() && i + 1 != activeSourceAssign)
-				{
-					newActiveSourceAssign = i + 1;
-					break;
-				}
-			}
-			if (newActiveSourceAssign == 0 && params[activeSourceAssign - 1].getValue())
-			{
-				newActiveSourceAssign = activeSourceAssign;
-			}
-
-			// switch off other source assign buttons
-			for (size_t i = 0; i < ENV1_A_PARAM; i++)
-			{
-				if (i + 1 != newActiveSourceAssign)
-				{
-					params[i].setValue(0);
-				}
-			}
-
-
-			bool newOscMixRouteActive = params[OSC_MIX_ROUTE_PARAM].getValue() > 0.5f;
-
-			// adapt UI if activeSourceAssign or oscMixRouteActive have changed
-			bool reconfigureUi = false;
-			if (activeSourceAssign != newActiveSourceAssign ||
-					oscMixRouteActive != newOscMixRouteActive ||
-					filter2CutoffMode != (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue())
-			{
-				activeSourceAssign = newActiveSourceAssign;
-				oscMixRouteActive = newOscMixRouteActive;
-				filter2CutoffMode = (int)getParam(FILTER2_CUTOFF_MODE_PARAM).getValue();
-				reconfigureUi = true;
-				configureUi();
-			}
-
-			// update mod matrix elements
-			for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
-			{
-				if (activeSourceAssign == 0)
-				{
-					switch (ENV1_A_PARAM + i)
-					{
-					case ENV1_A_PARAM:
-					case ENV1_D_PARAM:
-					case ENV1_R_PARAM:
-					case ENV2_A_PARAM:
-					case ENV2_D_PARAM:
-					case ENV2_R_PARAM:
-					case OSC1_TUNE_GLIDE_PARAM:
-					case FILTER1_CUTOFF_PARAM:
-					case FILTER2_CUTOFF_PARAM:
-						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 10.f;
-						break;
-					case OSC1_TUNE_SEMI_PARAM:
-					case OSC2_TUNE_SEMI_PARAM:
-						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue() * 5.f / 12.f;
-						break;
-					default:
-						modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
-					}
-				}
-				else
-				{
-					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
-				}
-			}
-
-			if (oscMixRouteActive)
-			{
-				for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
-				{
-					modMatrix[i + nMixChannels][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
-				}
-			}
-			else
-			{
-				for (size_t i = nDestinations - 2 * nMixChannels; i < nDestinations - nMixChannels; i++)
-				{
-					modMatrix[i][activeSourceAssign] = getParam(ENV1_A_PARAM + i).getValue();
-				}
-			}
-
-			// update mustCalculateDestination
-			for (size_t iDest = 0; iDest < nDestinations; iDest++)
-			{
-				bool oldMustCalculateDestination = mustCalculateDestination[iDest];
-				mustCalculateDestination[iDest] = false;
-				for (size_t iSource = 1; iSource < nSources; iSource++)
-				{
-					if (modMatrix[iDest][iSource] != 0.f)
-					{
-						mustCalculateDestination[iDest] = true;
-						break;
-					}
-				}
-
-				reconfigureUi |= oldMustCalculateDestination != mustCalculateDestination[iDest];
-			}
-
-			if (reconfigureUi)
-			{
-				// configure UI again to set tooltips
-				configureUi();
-			}
-
-
-			// set non-modulatable parameters
-			for (int c = 0; c < channels; c += 4) {
-				if (channels < 2)
-				{
-					modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4] = 0.f;
-				}
-				else
-				{
-					for (int iChannel = c; iChannel < std::min(channels, c + 4); iChannel++)
-					{
-						modMatrixInputs[VOICE_NR_ASSIGN_PARAM + 1][c/4][iChannel - c] = 10.f * ((iChannel) / (channels - 1.f)) - 5.f;
-					}
-				}
-
-				env1[c/4].setVelocityScaling(getParam(ENV1_VEL_PARAM).getValue());
-				env2[c/4].setVelocityScaling(getParam(ENV2_VEL_PARAM).getValue());
-
-				lfo1[c/4].setShape(getParam(LFO1_SHAPE_PARAM).getValue());
-				lfo1[c/4].setSingleCycle(getParam(LFO1_MODE_PARAM).getValue() == 2);
-				lfo2[c/4].setShape(getParam(LFO2_SHAPE_PARAM).getValue());
-				lfo2[c/4].setSingleCycle(getParam(LFO2_MODE_PARAM).getValue() == 2);
-
-				drift1[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
-				drift2[c/4].setFilterFrequencyV(getParam(DRIFT_RATE_PARAM).getValue());
-
-				oscillators[c/4].setSync(getParam(OSC_SYNC_PARAM).getValue());
-
-				filter1[c/4].setMode(getParam(FILTER1_MODE_PARAM).getValue());
-				filter2[c/4].setMode(getParam(FILTER2_MODE_PARAM).getValue());
-			}
-			globalLfo.setFrequencyVOct(getParam(GLOBAL_LFO_FREQ_PARAM).getValue());
-
-
-			// lights
-			lights[OSC_TUNE_GLIDE_FINGERED_LIGHT].setBrightness(getParam(OSC_TUNE_GLIDE_FINGERED_PARAM).getValue());
-			lights[OSC_SYNC_LIGHT].setBrightness(getParam(OSC_SYNC_PARAM).getValue());
+			processUi();
 		}
 
 		if (modDivider.process())

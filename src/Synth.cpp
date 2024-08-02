@@ -214,10 +214,10 @@ struct Synth : Module {
 	float mixLevels[nMixChannels] = {0.};
 	float mixFilterBalances[nMixChannels] = {0.};
 
-	float_4 modMatrixInputs[nSources][4] = {0};
-	float_4 modMatrixOutputs[nDestinations][4] = {0};
+	float_4 modMatrixInputs[nSources][4] = {{0}};
+	float_4 modMatrixOutputs[nDestinations][4] = {{0}};
 
-	float modMatrix[nDestinations][nSources] = {0}; // the mod matrix
+	float modMatrix[nDestinations][nSources] = {{0}}; // the mod matrix
 
 	bool mustCalculateDestination[nDestinations] = {false}; // false if all but the first entry of the mod matrix column are 0
 
@@ -259,10 +259,10 @@ struct Synth : Module {
 	musx::AliasReductionFilter<float_4> aliasFilter1[4];
 	musx::FilterBlock filter1[4];
 	musx::AntialiasedCheapSaturator<float_4> saturator1[4];
-	float_4 delayBuffer1[4][maxOversamplingRate] = {0.f};
+	float_4 delayBuffer1[4][maxOversamplingRate] = {{0.f}};
 
 	int filter2CutoffMode = 0; // 0: individual, 1: offset, 2: space
-	float_4 delayBuffer2[4][maxOversamplingRate] = {0.f};
+	float_4 delayBuffer2[4][maxOversamplingRate] = {{0.f}};
 	musx::TOnePole<float_4> dcBlocker2[4];
 	musx::AliasReductionFilter<float_4> aliasFilter2[4];
 	musx::FilterBlock filter2[4];

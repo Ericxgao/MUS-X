@@ -10,6 +10,8 @@
 #include "dsp/decimator.hpp"
 #include "dsp/filters.hpp"
 
+#include <array>
+
 namespace musx {
 
 using namespace rack;

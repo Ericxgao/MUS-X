@@ -335,6 +335,24 @@ struct Synth : Module {
 		}
 	}
 
+	void loadTemplate()
+	{
+		if (!widget)
+		{
+			return;
+		}
+
+		Model* m = getModel();
+		if (!m)
+		{
+			return;
+		}
+
+		std::string filename = m->getFactoryPresetDirectory() + "/template.vcvm";
+
+		widget->load(filename);
+	}
+
 	static const std::array<std::string, nSources>& getSourceLabels()
 	{
 		static const std::array<std::string, nSources> sourceLabelMap = {
@@ -1660,6 +1678,7 @@ struct SynthWidget : ModuleWidget {
 		if (module)
 		{
 			module->widget = this;
+			module->loadTemplate();
 		}
 
 		setPanel(createPanel(asset::plugin(pluginInstance, "res/Synth.svg"), asset::plugin(pluginInstance, "res/Synth-dark.svg")));

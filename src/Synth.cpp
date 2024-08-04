@@ -318,7 +318,7 @@ struct Synth : Module {
 
 		setOversamplingRate(oversamplingRate);
 
-		configureUi();
+		configureUi(true);
 
 		uiDivider.setDivision(16);
 		modDivider.setDivision(2);
@@ -450,7 +450,7 @@ struct Synth : Module {
 		return destinationLabelMap;
 	}
 
-	void configureUi()
+	void configureUi(bool initial = false)
 	{
 		const auto& sourceLabels = getSourceLabels();
 		const auto& destinationLabels = getDestinationLabels();
@@ -498,13 +498,28 @@ struct Synth : Module {
 				}
 			}
 
-			if (isModulating)
+			SwitchQuantity* sw = nullptr;
+			if (initial)
 			{
-				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {modulatesLabel, "active" + modulatesLabel})->ParamQuantity::randomizeEnabled = false;
+				sw = configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"", "active"});
 			}
 			else
 			{
-				configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"", "active"})->ParamQuantity::randomizeEnabled = false;
+				sw = dynamic_cast<SwitchQuantity*>(getParamQuantity(iSource));
+			}
+			if (sw)
+			{
+				sw->randomizeEnabled = false;
+				if (isModulating)
+				{
+					std::vector<std::string> labels = {modulatesLabel, "active" + modulatesLabel};
+					sw->labels = labels;
+				}
+				else
+				{
+					std::vector<std::string> labels = {"", "active"};
+					sw->labels = labels;
+				}
 			}
 
 			if (iSource + 1 == activeSourceAssign)
@@ -528,17 +543,17 @@ struct Synth : Module {
 					switch (activeSourceAssign - 1)
 					{
 					case VOCT_ASSIGN_PARAM:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -10.f, 10.f, 5.f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -10.f, 10.f, 5.f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" %", 0, 20.);
 						break;
 					case PITCH_WHEEL_ASSIGN_PARAM:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -2.f, 2.f, 0.16666666f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -2.f, 2.f, 0.16666666f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" semitones", 0, 12.);
 						break;
 					default:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -2.f, 2.f, 0.f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -2.f, 2.f, 0.f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" %", 0, 50.);
 					}
@@ -548,23 +563,23 @@ struct Synth : Module {
 					switch (activeSourceAssign - 1)
 					{
 					case VOCT_ASSIGN_PARAM:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -2.f, 2.f, 1.f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -2.f, 2.f, 1.f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" %", 0, 100.);
 						break;
 					case PITCH_WHEEL_ASSIGN_PARAM:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -0.4f, 0.4f, 0.033333333f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -0.4f, 0.4f, 0.033333333f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" semitones", 0, 60.);
 						break;
 					default:
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -2.f, 2.f, 0.f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -2.f, 2.f, 0.f,
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" %", 0, 50.);
 					}
 					break;
 				default:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i],
 							" %", 0, 100.);
 				}
@@ -589,7 +604,7 @@ struct Synth : Module {
 				case ENV2_A_PARAM:
 				case ENV2_D_PARAM:
 				case ENV2_R_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
 							destinationLabel,
 							" ms", LAMBDA_BASE, MIN_TIME * 1000.0);
 					param->bipolar = false;
@@ -597,14 +612,14 @@ struct Synth : Module {
 					break;
 				case LFO1_FREQ_PARAM:
 				case LFO2_FREQ_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel,
 							" Hz", 2.f, 2.f);
 					param->bipolar = false;
 					getParam(ENV1_A_PARAM + i).setValue(modMatrix[i][activeSourceAssign]);
 					break;
 				case OSC1_TUNE_GLIDE_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 1.f, 0.f,
 							destinationLabel,
 							" ms",
 							getGlideFreq(0.f, 40000.f)[0] / getGlideFreq(10.f, 40000.f)[0],
@@ -614,7 +629,7 @@ struct Synth : Module {
 					break;
 				case OSC1_TUNE_SEMI_PARAM:
 				case OSC2_TUNE_SEMI_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -12.f, 12.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -12.f, 12.f, 0.f,
 							destinationLabel,
 							" semitones");
 					param->bipolar = true;
@@ -624,7 +639,7 @@ struct Synth : Module {
 					break;
 				case OSC1_TUNE_FINE_PARAM:
 				case OSC2_TUNE_FINE_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel,
 							" cents", 0, 20.f);
 					param->bipolar = true;
@@ -634,14 +649,14 @@ struct Synth : Module {
 				case FILTER2_CUTOFF_PARAM:
 					if (ENV1_A_PARAM + i == FILTER2_CUTOFF_PARAM && filter2CutoffMode)
 					{
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 0.5f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 1.f, 0.5f,
 								destinationLabel,
 								" %", 0, 200.f, -100.f);
 						param->bipolar = true;
 					}
 					else
 					{
-						param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 1.f, 1.f,
+						param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 1.f, 1.f,
 								destinationLabel,
 								" Hz", filterMaxFreq / filterMinFreq, filterMinFreq);
 						param->bipolar = false;
@@ -657,7 +672,7 @@ struct Synth : Module {
 				case FILTER1_PAN_PARAM:
 				case FILTER2_PAN_PARAM:
 					// bipolar
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel,
 							" %", 0, 20.f);
 					param->bipolar = true;
@@ -665,7 +680,7 @@ struct Synth : Module {
 					break;
 				case ENV1_S_PARAM:
 				case ENV2_S_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 10.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f, 10.f,
 							destinationLabel,
 							" %", 0, 10.f);
 					param->bipolar = false;
@@ -676,7 +691,7 @@ struct Synth : Module {
 				case OSC2_SHAPE_PARAM:
 				case OSC2_PW_PARAM:
 				case AMP_VOL_PARAM:
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 5.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f, 5.f,
 							destinationLabel,
 							" %", 0, 10.f);
 					param->bipolar = false;
@@ -684,7 +699,7 @@ struct Synth : Module {
 					break;
 				default:
 					// unipolar
-					param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f, 0.f,
 							destinationLabel,
 							" %", 0, 10.f);
 					param->bipolar = false;
@@ -718,7 +733,7 @@ struct Synth : Module {
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " routing (filter 1 / filter 2)",
 							" %", 0, 100.);
 
@@ -730,7 +745,7 @@ struct Synth : Module {
 				{
 					std::string destinationLabel = destinationLabels[i];
 					destinationLabel[0] = toupper(destinationLabel[0]);
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel + " routing (filter 1 / filter 2)",
 							" %", 0, 20.);
 
@@ -760,7 +775,7 @@ struct Synth : Module {
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " volume",
 							" %", 0, 100.);
 
@@ -772,7 +787,7 @@ struct Synth : Module {
 				{
 					std::string destinationLabel = destinationLabels[i];
 					destinationLabel[0] = toupper(destinationLabel[0]);
-					BipolarColorParamQuantity* param = configParam<BipolarColorParamQuantity>(ENV1_A_PARAM + i, 0.f, 10.f,
+					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f,
 							(i == nDestinations - 2 * nMixChannels) ? 5.f : 0.f,
 							destinationLabel + " volume",
 							" %", 0, 10.);
@@ -866,6 +881,34 @@ struct Synth : Module {
 				paramWidget->onChange(e);
 			}
 		}
+	}
+
+	BipolarColorParamQuantity* configParamBipolarColorParamQuantity(bool initial, int paramId, float minValue, float maxValue, float defaultValue, std::string name = "", std::string unit = "", float displayBase = 0.f, float displayMultiplier = 1.f, float displayOffset = 0.f)
+	{
+		BipolarColorParamQuantity* pq = nullptr;
+		if (initial)
+		{
+			// calling configParam when running can lead to SEGFAULTS
+			// call configParam only from Synths's contructor (initial = true)
+			// otherwise just update pq's internal variables
+			pq = configParam<BipolarColorParamQuantity>(paramId, minValue, maxValue, defaultValue, name, unit, displayBase, displayMultiplier, displayOffset);
+		}
+		else
+		{
+			pq = dynamic_cast<BipolarColorParamQuantity*>(getParamQuantity(paramId));
+		}
+		if (pq)
+		{
+			pq->minValue = minValue;
+			pq->maxValue = maxValue;
+			pq->defaultValue = defaultValue;
+			pq->name = name;
+			pq->unit = unit;
+			pq->displayBase = displayBase;
+			pq->displayMultiplier = displayMultiplier;
+			pq->displayOffset = displayOffset;
+		}
+		return pq;
 	}
 
 	void processUi()

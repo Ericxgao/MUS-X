@@ -271,6 +271,7 @@ struct Synth : Module {
 	// misc
 	bool doRandomize = false;
 	bool doReset = false;
+	bool jsonLoaded = false;
 
 	Synth() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -328,7 +329,7 @@ struct Synth : Module {
 
 	void loadTemplate()
 	{
-		if (!widget)
+		if (!widget || jsonLoaded)
 		{
 			return;
 		}
@@ -1592,6 +1593,8 @@ struct Synth : Module {
 	}
 
 	void dataFromJson(json_t* rootJ) override {
+		jsonLoaded = true;
+
 		json_t* entryJ;
 
 		json_t* modMatrixJ = json_object_get(rootJ, "modMatrix");

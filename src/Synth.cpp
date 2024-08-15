@@ -323,16 +323,7 @@ struct Synth : Module {
 		uiDivider.setDivision(16);
 		modDivider.setDivision(2);
 
-		for (int c = 0; c < 16; c += 4)
-		{
-			drift1[c/4].randomizeDiverge();
-			drift1[c/4].setDivergeAmount(0.f);
-			drift1[c/4].setDriftAmount(1.f);
-
-			drift2[c/4].randomizeDiverge();
-			drift2[c/4].setDivergeAmount(0.f);
-			drift2[c/4].setDriftAmount(1.f);
-		}
+		configureDrift();
 	}
 
 	void loadTemplate()
@@ -1173,6 +1164,26 @@ struct Synth : Module {
 		globalLfo.setSampleRateReduction(arg);
 	}
 
+	void configureDrift()
+	{
+		if (this->getId())
+		{
+			// use id to get diverge which is unique for every module instance, but stays the same when the patch is loaded again
+			rack::random::local().seed(this->getId(), 1103554439654531);
+		}
+
+		for (int c = 0; c < 16; c += 4)
+		{
+			drift1[c/4].randomizeDiverge();
+			drift1[c/4].setDivergeAmount(0.f);
+			drift1[c/4].setDriftAmount(1.f);
+
+			drift2[c/4].randomizeDiverge();
+			drift2[c/4].setDivergeAmount(0.f);
+			drift2[c/4].setDriftAmount(1.f);
+		}
+	}
+
 	void setFilterMethod(Method m)
 	{
 		filterMethod = m;
@@ -1577,20 +1588,6 @@ struct Synth : Module {
 
 		json_object_set_new(rootJ, "filterIntegratorType", json_integer((int)filterIntegratorType));
 
-		// diverge
-		json_t* diverge1J = json_array();
-		json_t* diverge2J = json_array();
-		for (size_t c = 0; c < 16; c++)
-		{
-			entryJ = json_real(drift1[c/4].getDiverge()[c % 4]);
-			json_array_insert_new(diverge1J, c, entryJ);
-
-			entryJ = json_real(drift2[c/4].getDiverge()[c % 4]);
-			json_array_insert_new(diverge2J, c, entryJ);
-		}
-		json_object_set_new(rootJ, "diverge1", diverge1J);
-		json_object_set_new(rootJ, "diverge2", diverge2J);
-
 		return rootJ;
 	}
 
@@ -1683,25 +1680,7 @@ struct Synth : Module {
 		}
 
 		// diverge
-		json_t* diverge1J = json_object_get(rootJ, "diverge1");
-		json_t* diverge2J = json_object_get(rootJ, "diverge2");
-		if (diverge1J && diverge2J)
-		{
-			for (size_t c = 0; c < 16; c++)
-			{
-				entryJ = json_array_get(diverge1J, c);
-				if (entryJ)
-				{
-					drift1[c/4].setDiverge(json_real_value(entryJ), c % 4);
-				}
-				entryJ = json_array_get(diverge2J, c);
-				if (entryJ)
-				{
-					drift2[c/4].setDiverge(json_real_value(entryJ), c % 4);
-				}
-			}
-		}
-
+		configureDrift();
 
 		configureUi();
 

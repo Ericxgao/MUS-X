@@ -557,6 +557,8 @@ struct Synth : Module {
 								"Assign " + sourceLabel + " to " + destinationLabels[i],
 								" %", 0, 50.);
 					}
+					param->snapEnabled = false;
+					param->smoothEnabled = true;
 					break;
 				case FILTER1_CUTOFF_PARAM:
 				case FILTER2_CUTOFF_PARAM:
@@ -612,7 +614,7 @@ struct Synth : Module {
 					break;
 				case LFO1_FREQ_PARAM:
 				case LFO2_FREQ_PARAM:
-					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 10.f, 0.f,
 							destinationLabel,
 							" Hz", 2.f, 2.f);
 					param->bipolar = false;
@@ -885,12 +887,13 @@ struct Synth : Module {
 
 	BipolarColorParamQuantity* configParamBipolarColorParamQuantity(bool initial, int paramId, float minValue, float maxValue, float defaultValue, std::string name = "", std::string unit = "", float displayBase = 0.f, float displayMultiplier = 1.f, float displayOffset = 0.f)
 	{
+		// calling configParam when running can lead to SEGFAULTS
+		// call configParam only from Synths's constructor (initial = true)
+		// otherwise just update pq's internal variables
+
 		BipolarColorParamQuantity* pq = nullptr;
 		if (initial)
 		{
-			// calling configParam when running can lead to SEGFAULTS
-			// call configParam only from Synths's contructor (initial = true)
-			// otherwise just update pq's internal variables
 			pq = configParam<BipolarColorParamQuantity>(paramId, minValue, maxValue, defaultValue, name, unit, displayBase, displayMultiplier, displayOffset);
 		}
 		else
@@ -1701,6 +1704,8 @@ struct Synth : Module {
 
 
 		configureUi();
+
+		// TODO reset LFO phases, osc phases, filters
 	}
 
 private:

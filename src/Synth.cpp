@@ -1687,7 +1687,15 @@ struct Synth : Module {
 
 		configureUi();
 
-		// TODO reset LFO phases, osc phases, filters
+		// reset LFO phases, filters
+		globalLfo.resetPhases();
+		for (int c = 0; c < 16; c += 4) {
+			lfo1[c/4].resetPhases();
+			lfo2[c/4].resetPhases();
+
+			filter1[c/4].reset();
+			filter2[c/4].reset();
+		}
 	}
 
 private:

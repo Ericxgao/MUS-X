@@ -385,6 +385,11 @@ struct CombFilter
 		feedback *= -1.f;
 	}
 
+	void reset()
+	{
+		std::memset(&delayLine, 0, delayLineSize * sizeof(float_4));
+	}
+
 	// dt in seconds
 	float_4 process(float_4 in, float_4 dt)
 	{

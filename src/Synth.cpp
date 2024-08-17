@@ -1239,7 +1239,7 @@ struct Synth : Module {
 					modMatrixInputs[iInput + 1][c/4] = inputs[iInput].getPolyVoltageSimd<float_4>(c);
 				}
 
-				float_4 triggerInput = inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c);
+				float_4 triggerInput = inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c) + inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c);
 				float_4 rnd = {rack::random::uniform(), rack::random::uniform(), rack::random::uniform(), rack::random::uniform()};
 				modMatrixInputs[RANDOM_ASSIGN_PARAM + 1][c/4] = ifelse(triggerInput > lastTrigger[c/4] + 0.5f,
 						(10.f * rnd) - 5.f,
@@ -1247,12 +1247,12 @@ struct Synth : Module {
 
 				// process modulation blocks
 				env1[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env1[c/4].setRetrigger(triggerInput);
+				env1[c/4].setRetrigger(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
 				env1[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV1_ASSIGN_PARAM + 1][c/4] = env1[c/4].process(args.sampleTime * modDivider.getDivision());
 
 				env2[c/4].setGate(inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c));
-				env2[c/4].setRetrigger(triggerInput);
+				env2[c/4].setRetrigger(inputs[RETRIGGER_INPUT].getPolyVoltageSimd<float_4>(c));
 				env2[c/4].setVelocity(inputs[VELOCITY_INPUT].getPolyVoltageSimd<float_4>(c));
 				modMatrixInputs[ENV2_ASSIGN_PARAM + 1][c/4] = env2[c/4].process(args.sampleTime * modDivider.getDivision());
 

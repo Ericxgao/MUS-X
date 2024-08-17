@@ -35,7 +35,6 @@ public:
 	// [0..1]
 	void setAttackTime(float_4 t)
 	{
-		t = fmax(0.f, t);
 		attackLambda = simd::exp(-t * logLambdaBase) / minTime;
 	}
 
@@ -47,7 +46,6 @@ public:
 	// [0..1]
 	void setDecayTime(float_4 t)
 	{
-		t = fmax(0.f, t);
 		decayLambda = simd::exp(-t * logLambdaBase) / minTime;
 	}
 
@@ -65,7 +63,6 @@ public:
 	// [0..1]
 	void setReleaseTime(float_4 t)
 	{
-		t = fmax(0.f, t);
 		releaseLambda = simd::exp(-t * logLambdaBase) / minTime;
 	}
 
@@ -113,6 +110,7 @@ public:
 		float_4 lambda = simd::ifelse(attacking, attackLambda, simd::ifelse(gate, decayLambda, releaseLambda));
 
 		// Adjust env
+		lambda = clamp(lambda, 0.f, 1.f / sampleTime);
 		env += (target - env) * lambda * sampleTime;
 
 		// Turn off attacking state if envelope is HIGH

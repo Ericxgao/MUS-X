@@ -192,7 +192,7 @@
       "id": 46
     },
     {
-      "value": -8.0000057220458984,
+      "value": -8.0000076293945312,
       "id": 47
     },
     {
@@ -909,7 +909,7 @@
       0.0,
       0.0,
       0.0,
-      -3.3333358764648438,
+      -3.3333365917205811,
       5.0,
       0.0,
       0.0,
@@ -1501,6 +1501,8 @@
       0.0,
       0.0
     ],
+    "filter1Mode": "Diode Clipper (Symmetric)",
+    "filter2Mode": "2-pole ladder bandpass, 6 dB/Oct",
     "oversamplingRate": 8,
     "modSampleRateReduction": 1,
     "uiSampleRateReduction": 8,

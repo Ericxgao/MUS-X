@@ -172,7 +172,7 @@
       "id": 41
     },
     {
-      "value": 9.0000057220458984,
+      "value": 9.0000076293945312,
       "id": 42
     },
     {
@@ -794,7 +794,7 @@
       0.0,
       0.0,
       0.0,
-      3.7500026226043701,
+      3.7500033378601074,
       5.0,
       0.0,
       0.0,
@@ -1501,6 +1501,8 @@
       0.0,
       0.0
     ],
+    "filter1Mode": "2-pole Sallen-Key lowpass, 12 dB/Oct",
+    "filter2Mode": "Diode Clipper (Asymmetric)",
     "oversamplingRate": 8,
     "modSampleRateReduction": 1,
     "uiSampleRateReduction": 8,

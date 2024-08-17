@@ -1501,6 +1501,8 @@
       0.0,
       0.0
     ],
+    "filter1Mode": "2-pole Sallen-Key lowpass, 12 dB/Oct",
+    "filter2Mode": "Mute",
     "oversamplingRate": 8,
     "modSampleRateReduction": 1,
     "uiSampleRateReduction": 8,

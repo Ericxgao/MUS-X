@@ -1501,6 +1501,8 @@
       0.0,
       0.0
     ],
+    "filter1Mode": "4-pole ladder lowpass, 24 dB/Oct",
+    "filter2Mode": "Diode Clipper (Asymmetric)",
     "oversamplingRate": 8,
     "modSampleRateReduction": 1,
     "uiSampleRateReduction": 8,

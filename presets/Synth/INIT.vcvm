@@ -212,7 +212,7 @@
       "id": 51
     },
     {
-      "value": 5.0,
+      "value": 0.5,
       "id": 52
     },
     {
@@ -1501,6 +1501,8 @@
       0.0,
       0.0
     ],
+    "filter1Mode": "2-pole Sallen-Key lowpass, 12 dB/Oct",
+    "filter2Mode": "Mute",
     "oversamplingRate": 8,
     "modSampleRateReduction": 1,
     "uiSampleRateReduction": 8,

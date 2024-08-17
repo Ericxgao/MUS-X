@@ -1581,6 +1581,10 @@ struct Synth : Module {
 		}
 		json_object_set_new(rootJ, "mixFilterBalances", mixFilterBalancesJ);
 
+		std::vector<std::string> labels = FilterBlock::getModeLabels();
+		json_object_set_new(rootJ, "filter1Mode", json_string(labels[params[FILTER1_MODE_PARAM].getValue()].c_str()));
+		json_object_set_new(rootJ, "filter2Mode", json_string(labels[params[FILTER2_MODE_PARAM].getValue()].c_str()));
+
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
 		json_object_set_new(rootJ, "modSampleRateReduction", json_integer(modDivider.getDivision()));
 		json_object_set_new(rootJ, "uiSampleRateReduction", json_integer(uiDivider.getDivision()));
@@ -1636,6 +1640,27 @@ struct Synth : Module {
 				{
 					mixFilterBalances[i] = json_real_value(entryJ);
 				}
+			}
+		}
+
+		// read filter mode from label string, allows adding filter modes in future releases without breaking patches
+		std::vector<std::string> labels = FilterBlock::getModeLabels();
+		json_t* filter1ModeJ = json_object_get(rootJ, "filter1Mode");
+		if (filter1ModeJ)
+		{
+			auto it = std::find(labels.begin(), labels.end(), json_string_value(filter1ModeJ));
+			if (it != labels.end())
+			{
+				params[FILTER1_MODE_PARAM].setValue(std::distance(labels.begin(), it));
+			}
+		}
+		json_t* filter2ModeJ = json_object_get(rootJ, "filter2Mode");
+		if (filter2ModeJ)
+		{
+			auto it = std::find(labels.begin(), labels.end(), json_string_value(filter2ModeJ));
+			if (it != labels.end())
+			{
+				params[FILTER2_MODE_PARAM].setValue(std::distance(labels.begin(), it));
 			}
 		}
 

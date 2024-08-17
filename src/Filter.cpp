@@ -125,6 +125,10 @@ struct Filter : Module {
 
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
+
+		std::vector<std::string> labels = FilterBlock::getModeLabels();
+		json_object_set_new(rootJ, "filterMode", json_string(labels[params[MODE_PARAM].getValue()].c_str()));
+
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
 		json_object_set_new(rootJ, "method", json_integer((int)method));
 		json_object_set_new(rootJ, "integratorType", json_integer((int)integratorType));
@@ -133,6 +137,18 @@ struct Filter : Module {
 	}
 
 	void dataFromJson(json_t* rootJ) override {
+		// read filter mode from label string, allows adding filter modes in future releases without breaking patches
+		std::vector<std::string> labels = FilterBlock::getModeLabels();
+		json_t* filterModeJ = json_object_get(rootJ, "filterMode");
+		if (filterModeJ)
+		{
+			auto it = std::find(labels.begin(), labels.end(), json_string_value(filterModeJ));
+			if (it != labels.end())
+			{
+				params[MODE_PARAM].setValue(std::distance(labels.begin(), it));
+			}
+		}
+
 		json_t* oversamplingRateJ = json_object_get(rootJ, "oversamplingRate");
 		if (oversamplingRateJ)
 		{

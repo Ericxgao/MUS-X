@@ -59,6 +59,8 @@ private:
 public:
 	static std::vector<std::string> getModeLabels()
 	{
+		// do not change existing labels! Filter modes are stored and loaded from JSON with these labels.
+		// This allows to add new filter types to the list at random positions (in future releases)
 		std::vector<std::string> labels = {
 			"1-pole lowpass, 6 dB/Oct (non-resonant)",
 			"1-pole highpass, 6 dB/Oct (non-resonant)",

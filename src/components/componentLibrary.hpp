@@ -2,6 +2,8 @@
 
 #include <rack.hpp>
 
+#include "ModuleWithCustomParamContextMenu.hpp"
+
 #include <vector>
 
 namespace musx {
@@ -17,12 +19,12 @@ struct BipolarColorParamQuantity : ParamQuantity
 	bool indicator = false;
 	std::vector<std::string> modulatedByTooltips = {};
 
-	std::string getString() override
+	std::string getDescription() override
 	{
-		std::string tooltip = ParamQuantity::getString();
+		std::string tooltip;
 		if (modulatedByTooltips.size())
 		{
-			tooltip += "\n\nModulated by:";
+			tooltip += "\nModulated by:";
 			for (auto& str : modulatedByTooltips)
 			{
 				str[0] = toupper(str[0]);
@@ -81,6 +83,16 @@ public:
 		}
 	}
 
+	void appendContextMenu(ui::Menu* menu) override
+	{
+		ModuleWithCustomParamContextMenu* module = dynamic_cast<ModuleWithCustomParamContextMenu*>(this->module);
+
+		if (module)
+		{
+			module->appendToParamContextMenu(this, menu);
+		}
+	}
+
 private:
 	void drawBg(const DrawArgs &args, NVGcolor color) {
 
@@ -128,6 +140,20 @@ private:
 		nvgStroke(args.vg);
 	}
 
+};
+
+
+struct AssignButton : VCVLightLatch<MediumSimpleLight<BlueLight>>
+{
+	void appendContextMenu(ui::Menu* menu) override
+	{
+		ModuleWithCustomParamContextMenu* module = dynamic_cast<ModuleWithCustomParamContextMenu*>(this->module);
+
+		if (module)
+		{
+			module->appendToSwitchContextMenu(this, menu);
+		}
+	}
 };
 
 }

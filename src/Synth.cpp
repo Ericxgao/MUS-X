@@ -1,5 +1,6 @@
 #include "plugin.hpp"
 #include "components/componentLibrary.hpp"
+#include "components/ModuleWithCustomParamContextMenu.hpp"
 
 #include "blocks/ADSRBlock.hpp"
 #include "blocks/DriftBlock.hpp"
@@ -16,7 +17,7 @@ namespace musx {
 
 using namespace rack;
 
-struct Synth : Module {
+struct Synth : ModuleWithCustomParamContextMenu {
 	enum ParamId {
 		// assign params
 		VOCT_ASSIGN_PARAM,
@@ -291,7 +292,7 @@ struct Synth : Module {
 		getParamQuantity(OSC2_TUNE_OCT_PARAM)->smoothEnabled = false;
 		configSwitch(OSC_TUNE_GLIDE_FINGERED_PARAM, 0,   1,   0,  "Fingered glide", {"Off", "On"});
 		configSwitch(OSC_SYNC_PARAM, 0,   1,   0,  "Sync", {"Off", "Sync oscillator 2 to oscillator 1"});
-		SwitchQuantity* sq = configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"", "active"});
+		SwitchQuantity* sq = configSwitch(OSC_MIX_ROUTE_PARAM, 0, 1, 0, "Adjust mixer routing to filter 1 / filter 2", {"off", "active"});
 		sq->ParamQuantity::randomizeEnabled = false;
 		sq->ParamQuantity::resetEnabled = false;
 		configSwitch(FILTER1_MODE_PARAM, 0, FilterBlock::getModeLabels().size() - 1, 8, "Filter 1 mode", FilterBlock::getModeLabels());
@@ -465,7 +466,7 @@ struct Synth : Module {
 		for (size_t iSource = 0; iSource < sourceLabels.size(); iSource++)
 		{
 			bool isModulating = false;
-			std::string modulatesLabel = "\n\nModulates:\n";
+			std::string modulatesLabel = "\nModulates:\n";
 			for (size_t iDest : destIds)
 			{
 				if (modMatrix[iDest][iSource + 1] != 0.f)
@@ -493,7 +494,7 @@ struct Synth : Module {
 			SwitchQuantity* sw = nullptr;
 			if (initial)
 			{
-				sw = configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"", "active"});
+				sw = configSwitch(iSource, 0, 1, 0, "Assign " + sourceLabels[iSource], {"off", "active"});
 			}
 			else
 			{
@@ -502,15 +503,10 @@ struct Synth : Module {
 			if (sw)
 			{
 				sw->randomizeEnabled = false;
+				sw->description = "";
 				if (isModulating)
 				{
-					std::vector<std::string> labels = {modulatesLabel, "active" + modulatesLabel};
-					sw->labels = labels;
-				}
-				else
-				{
-					std::vector<std::string> labels = {"", "active"};
-					sw->labels = labels;
+					sw->description = modulatesLabel;
 				}
 			}
 
@@ -1217,6 +1213,62 @@ struct Synth : Module {
 		doRandomize = true;
 	}
 
+	void appendToParamContextMenu(ParamWidget* param, ui::Menu* menu) override
+	{
+		menu->addChild(new MenuSeparator);
+		menu->addChild(createMenuItem(
+				"Clear modulations for this destination",
+				"",
+				[=]() {resetModulationsForDestination(param->paramId);}));
+	}
+
+	void resetModulationsForDestination(int paramId)
+	{
+		if (paramId == -1)
+		{
+			return;
+		}
+
+		size_t iDest = paramId - DRIFT_2_ASSIGN_PARAM - 1;
+		if (oscMixRouteActive)
+		{
+			iDest += nMixChannels;
+		}
+
+		for (size_t iSource = 1; iSource < nSources; iSource++)
+		{
+			modMatrix[iDest][iSource] = 0.f;
+		}
+
+		configureUi();
+	}
+
+	void appendToSwitchContextMenu(ParamWidget* param, ui::Menu* menu) override
+	{
+		menu->addChild(new MenuSeparator);
+		menu->addChild(createMenuItem(
+				"Clear modulations for this source",
+				"",
+				[=]() {resetModulationsForSource(param->paramId);}));
+	}
+
+	void resetModulationsForSource(int paramId)
+	{
+		if (paramId == -1)
+		{
+			return;
+		}
+
+		size_t iSource = paramId + 1;
+
+		for (size_t iDest = 0; iDest < nDestinations; iDest++)
+		{
+			modMatrix[iDest][iSource] = 0.f;
+		}
+
+		configureUi();
+	}
+
 	void process(const ProcessArgs& args) override {
 
 		size_t currentOversamplingRate = oversamplingRate;
@@ -1746,29 +1798,29 @@ struct SynthWidget : ModuleWidget {
 
 		setPanel(createPanel(asset::plugin(pluginInstance, "res/Synth.svg"), asset::plugin(pluginInstance, "res/Synth-dark.svg")));
 
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 8.557)), module, Synth::VOCT_ASSIGN_PARAM, Synth::VOCT_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 18.182)), module, Synth::GATE_ASSIGN_PARAM, Synth::GATE_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 27.807)), module, Synth::VELOCITY_ASSIGN_PARAM, Synth::VELOCITY_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 37.433)), module, Synth::AFTERTOUCH_ASSIGN_PARAM, Synth::AFTERTOUCH_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 47.058)), module, Synth::PITCH_WHEEL_ASSIGN_PARAM, Synth::PITCH_WHEEL_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 56.683)), module, Synth::MOD_WHEEL_ASSIGN_PARAM, Synth::MOD_WHEEL_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 66.309)), module, Synth::EXPRESSION_ASSIGN_PARAM, Synth::EXPRESSION_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 75.934)), module, Synth::INDIVIDUAL_MOD_1_ASSIGN_PARAM, Synth::INDIVIDUAL_MOD_1_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 85.56)), module, Synth::INDIVIDUAL_MOD_2_ASSIGN_PARAM, Synth::INDIVIDUAL_MOD_2_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 95.185)), module, Synth::VOICE_NR_ASSIGN_PARAM, Synth::VOICE_NR_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(27.0, 104.81)), module, Synth::RANDOM_ASSIGN_PARAM, Synth::RANDOM_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 8.557)), module, Synth::VOCT_ASSIGN_PARAM, Synth::VOCT_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 18.182)), module, Synth::GATE_ASSIGN_PARAM, Synth::GATE_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 27.807)), module, Synth::VELOCITY_ASSIGN_PARAM, Synth::VELOCITY_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 37.433)), module, Synth::AFTERTOUCH_ASSIGN_PARAM, Synth::AFTERTOUCH_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 47.058)), module, Synth::PITCH_WHEEL_ASSIGN_PARAM, Synth::PITCH_WHEEL_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 56.683)), module, Synth::MOD_WHEEL_ASSIGN_PARAM, Synth::MOD_WHEEL_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 66.309)), module, Synth::EXPRESSION_ASSIGN_PARAM, Synth::EXPRESSION_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 75.934)), module, Synth::INDIVIDUAL_MOD_1_ASSIGN_PARAM, Synth::INDIVIDUAL_MOD_1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 85.56)), module, Synth::INDIVIDUAL_MOD_2_ASSIGN_PARAM, Synth::INDIVIDUAL_MOD_2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 95.185)), module, Synth::VOICE_NR_ASSIGN_PARAM, Synth::VOICE_NR_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(27.0, 104.81)), module, Synth::RANDOM_ASSIGN_PARAM, Synth::RANDOM_ASSIGN_LIGHT));
 
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(127.5, 12.088)), module, Synth::ENV1_ASSIGN_PARAM, Synth::ENV1_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(127.5, 37.188)), module, Synth::ENV2_ASSIGN_PARAM, Synth::ENV2_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 6.101)), module, Synth::LFO1_UNIPOLAR_ASSIGN_PARAM, Synth::LFO1_UNIPOLAR_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 17.662)), module, Synth::LFO1_BIPOLAR_ASSIGN_PARAM, Synth::LFO1_BIPOLAR_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 31.201)), module, Synth::LFO2_UNIPOLAR_ASSIGN_PARAM, Synth::LFO2_UNIPOLAR_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(210.0, 42.762)), module, Synth::LFO2_BIPOLAR_ASSIGN_PARAM, Synth::LFO2_BIPOLAR_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(263.0, 12.088)), module, Synth::GLOBAL_LFO_ASSIGN_PARAM, Synth::GLOBAL_LFO_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(257.179, 31.201)), module, Synth::DIVERGE_1_ASSIGN_PARAM, Synth::DIVERGE_1_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(265.117, 31.201)), module, Synth::DIVERGE_2_ASSIGN_PARAM, Synth::DIVERGE_2_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(257.179, 42.762)), module, Synth::DRIFT_1_ASSIGN_PARAM, Synth::DRIFT_1_ASSIGN_LIGHT));
-	    addParam(createLightParamCentered<VCVLightLatch<MediumSimpleLight<BlueLight>>>(mm2px(Vec(265.117, 42.762)), module, Synth::DRIFT_2_ASSIGN_PARAM, Synth::DRIFT_2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(127.5, 12.088)), module, Synth::ENV1_ASSIGN_PARAM, Synth::ENV1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(127.5, 37.188)), module, Synth::ENV2_ASSIGN_PARAM, Synth::ENV2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(210.0, 6.101)), module, Synth::LFO1_UNIPOLAR_ASSIGN_PARAM, Synth::LFO1_UNIPOLAR_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(210.0, 17.662)), module, Synth::LFO1_BIPOLAR_ASSIGN_PARAM, Synth::LFO1_BIPOLAR_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(210.0, 31.201)), module, Synth::LFO2_UNIPOLAR_ASSIGN_PARAM, Synth::LFO2_UNIPOLAR_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(210.0, 42.762)), module, Synth::LFO2_BIPOLAR_ASSIGN_PARAM, Synth::LFO2_BIPOLAR_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(263.0, 12.088)), module, Synth::GLOBAL_LFO_ASSIGN_PARAM, Synth::GLOBAL_LFO_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(257.179, 31.201)), module, Synth::DIVERGE_1_ASSIGN_PARAM, Synth::DIVERGE_1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(265.117, 31.201)), module, Synth::DIVERGE_2_ASSIGN_PARAM, Synth::DIVERGE_2_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(257.179, 42.762)), module, Synth::DRIFT_1_ASSIGN_PARAM, Synth::DRIFT_1_ASSIGN_LIGHT));
+	    addParam(createLightParamCentered<AssignButton>(mm2px(Vec(265.117, 42.762)), module, Synth::DRIFT_2_ASSIGN_PARAM, Synth::DRIFT_2_ASSIGN_LIGHT));
 
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(47.029, 12.088)), module, Synth::ENV1_A_PARAM));
 	    addParam(createParamCentered<RoundBlackKnobWithArc>(mm2px(Vec(64.029, 12.088)), module, Synth::ENV1_D_PARAM));

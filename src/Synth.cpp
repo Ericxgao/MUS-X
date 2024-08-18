@@ -273,6 +273,8 @@ struct Synth : ModuleWithCustomParamContextMenu {
 	bool doRandomize = false;
 	bool doReset = false;
 	bool jsonLoaded = false;
+	int resetModulationsForSourceId = -1;
+	int resetModulationsForDestinationId = -1;
 
 	Synth() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -905,6 +907,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 
 	void processUi()
 	{
+		bool reconfigureUi = false;
 		channels = std::max(1, inputs[VOCT_INPUT].getChannels());
 
 		outputs[INDIVIDUAL_MOD_1_OUTPUT].setChannels(channels);
@@ -938,7 +941,6 @@ struct Synth : ModuleWithCustomParamContextMenu {
 		}
 
 
-		bool reconfigureUi = false;
 		bool newOscMixRouteActive = params[OSC_MIX_ROUTE_PARAM].getValue() > 0.5f;
 
 		// adapt UI if activeSourceAssign or oscMixRouteActive have changed
@@ -1019,7 +1021,29 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			}
 		}
 
-		// reset / randomize when activeSourceAssign is active
+
+		// handle resets from assign button and knob context menu
+		if (resetModulationsForDestinationId != -1)
+		{
+			for (size_t iSource = 1; iSource < nSources; iSource++)
+			{
+				modMatrix[resetModulationsForDestinationId][iSource] = 0.f;
+			}
+			reconfigureUi = true;
+			resetModulationsForDestinationId = -1;
+		}
+
+		if (resetModulationsForSourceId != -1)
+		{
+			for (size_t iDest = 0; iDest < nDestinations; iDest++)
+			{
+				modMatrix[iDest][resetModulationsForSourceId] = 0.f;
+			}
+			reconfigureUi = true;
+			resetModulationsForSourceId = -1;
+		}
+
+		// module reset/randomize when activeSourceAssign is active
 		if (doReset)
 		{
 			doReset = false;
@@ -1236,12 +1260,8 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			iDest += nMixChannels;
 		}
 
-		for (size_t iSource = 1; iSource < nSources; iSource++)
-		{
-			modMatrix[iDest][iSource] = 0.f;
-		}
-
-		configureUi();
+		// handle reset later in audio thread instead of here in UI thread
+		resetModulationsForDestinationId = iDest;
 	}
 
 	void appendToSwitchContextMenu(ParamWidget* param, ui::Menu* menu) override
@@ -1260,14 +1280,8 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			return;
 		}
 
-		size_t iSource = paramId + 1;
-
-		for (size_t iDest = 0; iDest < nDestinations; iDest++)
-		{
-			modMatrix[iDest][iSource] = 0.f;
-		}
-
-		configureUi();
+		// handle reset later in audio thread instead of here in UI thread
+		resetModulationsForSourceId = paramId + 1;
 	}
 
 	void process(const ProcessArgs& args) override {

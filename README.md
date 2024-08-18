@@ -41,7 +41,10 @@ The 'Poly' input determines the polyphony channels of the output.
 ## Filter
 A collection of filters.
 * 'Cutoff' sets the filter cutoff frequency.
-* 'Reso' sets the filter resonance, or the drive when a diode clipper is selected.
+* 'Reso' sets the filter resonance
+	* for non-resonant filters, this has no effect
+	* for comb filters, this controls the feedback
+	* for diode clippers, this controls the drive
 * 'Mode' sets the filter type. A selection of ladder filters, Sallen-Key filters, comb filters and diode clippers are available.
 * The 'Mode' can also be set to bypass (if enabled, the 'Post-filter Saturator' will still be active) or mute.
 
@@ -172,8 +175,10 @@ If 'Mix Route' is active, a purple ring is shown in the mixer section.
 By clicking on the assign button once again, the synthesizer goes back into base mode.
 
 The assign buttons are dimly lit, if any modulations are active. Hovering a button with the mouse shows all modulation destinations which are affected. 
+In the context menu, the modulations for the source can be cleared.
 
 If a parameter is modulated, a little light below the knob is lit. Hovering a knob with the mouse shows all modulation sources which affect the parameter.
+In the context menu, the modulations for the destination can be cleared.
 
 In base mode, Racks 'initialize' and 'randomize' functions only change the base values and non-modulatable parameters.
 When an assign button is active, 'initialize' and 'randomize' only affect the modulation assignments for the active modulation source.
@@ -185,7 +190,7 @@ Some modulation assignments have to be made in order for Synth to behave 'normal
 - For pitch bend, I recommend to turn the pitch bend range in the 'MIDI to CV' module to 'Off', and modulate Osc 1 and 2 semi from 'PW' by 2 semitones
 
 ### Signal path
-There are 6 audio sources: oscillator 1 and sub-oscillator, ring modulator (multiplication of oscillator 1 and 2), noise, oscillator 2, and external input. If no external input is connected, 'Ext' controls the loopback of the mono signal before the amp.
+There are 6 audio sources: two [oscillators](#oscillators) with sub-oscillator and ring modulator (multiplication of oscillator 1 and 2), noise, and external input. If no external input is connected, 'Ext' controls the loopback of the mono signal before the amp.
 
 The volume for each source can be adjusted and modulated.
 When the 'Mix Route' button is active, each source can be routed to filter 1 (-100%), filter 2 (100%) or anything in between.
@@ -193,7 +198,7 @@ The routing can also be modulated.
 
 So there are effectively two mix buses, for filter 1 and filter 2.
 
-The filters can be operated in serial (the output of filter 1 is added to the filter 2 mix bus, filter 1 is not routed to the amp, and filter 1 pan has no effect), or in parallel, or anything in between.
+The [filters](#filter) can be operated in serial (the output of filter 1 is added to the filter 2 mix bus, filter 1 is not routed to the amp, and filter 1 pan has no effect), or in parallel, or anything in between.
 
 ## Tune
 Tune by octaves, plus coarse and fine (1 semitone) tuning.

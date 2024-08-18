@@ -603,7 +603,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 					break;
 				case LFO1_FREQ_PARAM:
 				case LFO2_FREQ_PARAM:
-					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 10.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -7.f, 10.f, 0.f,
 							destinationLabel,
 							" Hz", 2.f, 2.f);
 					param->bipolar = false;

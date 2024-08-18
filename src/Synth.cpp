@@ -519,10 +519,10 @@ struct Synth : ModuleWithCustomParamContextMenu {
 		for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
 		{
 			// config knobs when source assign is active
+			BipolarColorParamQuantity* param;
 			if (activeSourceAssign)
 			{
 				std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
-				BipolarColorParamQuantity* param;
 
 				switch(ENV1_A_PARAM + i)
 				{
@@ -584,7 +584,6 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			{
 				std::string destinationLabel = destinationLabels[i];
 				destinationLabel[0] = toupper(destinationLabel[0]);
-				BipolarColorParamQuantity* param;
 
 				switch(ENV1_A_PARAM + i)
 				{
@@ -697,18 +696,18 @@ struct Synth : ModuleWithCustomParamContextMenu {
 				}
 
 				param->color = SCHEME_GREEN;
-				param->indicator = mustCalculateDestination[i];
 				param->indicatorColor = SCHEME_BLUE;
+			}
 
-				param->modulatedByTooltips.clear();
-				if (mustCalculateDestination[i])
+			param->indicator = mustCalculateDestination[i];
+			param->modulatedByTooltips.clear();
+			if (mustCalculateDestination[i])
+			{
+				for (size_t iSource = 1; iSource < nSources; iSource++)
 				{
-					for (size_t iSource = 1; iSource < nSources; iSource++)
+					if (modMatrix[i][iSource] != 0.f)
 					{
-						if (modMatrix[i][iSource] != 0.f)
-						{
-							param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
-						}
+						param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
 					}
 				}
 			}
@@ -719,11 +718,12 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			if (oscMixRouteActive)
 			{
 				// config mix route knobs when source assign is active
+				BipolarColorParamQuantity* param;
 				if (activeSourceAssign)
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " routing (filter 1 / filter 2)",
 							" %", 0, 100.);
 
@@ -735,24 +735,24 @@ struct Synth : ModuleWithCustomParamContextMenu {
 				{
 					std::string destinationLabel = destinationLabels[i];
 					destinationLabel[0] = toupper(destinationLabel[0]);
-					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -5.f, 5.f, 0.f,
 							destinationLabel + " routing (filter 1 / filter 2)",
 							" %", 0, 20.);
 
 					param->bipolar = true;
 					param->color = SCHEME_RED;
-					param->indicator = mustCalculateDestination[nMixChannels + i];
 					param->indicatorColor = SCHEME_PURPLE;
+				}
 
-					param->modulatedByTooltips.clear();
-					if (mustCalculateDestination[nMixChannels + i])
+				param->indicator = mustCalculateDestination[nMixChannels + i];
+				param->modulatedByTooltips.clear();
+				if (mustCalculateDestination[nMixChannels + i])
+				{
+					for (size_t iSource = 1; iSource < nSources; iSource++)
 					{
-						for (size_t iSource = 1; iSource < nSources; iSource++)
+						if (modMatrix[nMixChannels + i][iSource] != 0.f)
 						{
-							if (modMatrix[nMixChannels + i][iSource] != 0.f)
-							{
-								param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
-							}
+							param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
 						}
 					}
 				}
@@ -761,11 +761,12 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			else
 			{
 				// config mix volume knobs when source assign is active
+				BipolarColorParamQuantity* param;
 				if (activeSourceAssign)
 				{
 					std::string sourceLabel = sourceLabels[activeSourceAssign - 1];
 
-					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, -1.f, 1.f, 0.f,
 							"Assign " + sourceLabel + " to " + destinationLabels[i] + " volume",
 							" %", 0, 100.);
 
@@ -777,25 +778,25 @@ struct Synth : ModuleWithCustomParamContextMenu {
 				{
 					std::string destinationLabel = destinationLabels[i];
 					destinationLabel[0] = toupper(destinationLabel[0]);
-					BipolarColorParamQuantity* param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f,
+					param = configParamBipolarColorParamQuantity(initial, ENV1_A_PARAM + i, 0.f, 10.f,
 							(i == nDestinations - 2 * nMixChannels) ? 5.f : 0.f,
 							destinationLabel + " volume",
 							" %", 0, 10.);
 
 					param->bipolar = false;
 					param->color = SCHEME_GREEN;
-					param->indicator = mustCalculateDestination[i];
 					param->indicatorColor = SCHEME_BLUE;
+				}
 
-					param->modulatedByTooltips.clear();
-					if (mustCalculateDestination[i])
+				param->indicator = mustCalculateDestination[i];
+				param->modulatedByTooltips.clear();
+				if (mustCalculateDestination[i])
+				{
+					for (size_t iSource = 1; iSource < nSources; iSource++)
 					{
-						for (size_t iSource = 1; iSource < nSources; iSource++)
+						if (modMatrix[i][iSource] != 0.f)
 						{
-							if (modMatrix[i][iSource] != 0.f)
-							{
-								param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
-							}
+							param->modulatedByTooltips.push_back(sourceLabels[iSource - 1]);
 						}
 					}
 				}

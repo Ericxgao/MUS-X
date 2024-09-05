@@ -38,13 +38,13 @@ struct SplitStack : Module {
 	bool split = false;
 	bool learnedSplitPoint = false;
 	float splitPoint = 0.f;
-	float_4 oldGates[4] = {0.f};
+	float oldGates[16] = {0.f};
 
 	SplitStack() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configParam(STACK_PARAM, 0.f, 1.f, 0.f, "Stack A+B");
-		configParam(SPLIT_PARAM, 0.f, 1.f, 0.f, "Split A/B (hold to learn split point");
-		configParam(SWITCH_PARAM, 0.f, 1.f, 0.f, "Switch A↔B");
+		configSwitch(STACK_PARAM, 0.f, 1.f, 0.f, "Stack A+B", {"off", "on"});
+		configSwitch(SPLIT_PARAM, 0.f, 1.f, 0.f, "Split A/B");
+		configSwitch(SWITCH_PARAM, 0.f, 1.f, 0.f, "Switch A↔B", {"off", "on"});
 		configInput(VOCT_INPUT, "V/Oct");
 		configInput(GATE_INPUT, "Gate");
 		configInput(RETRIG_INPUT, "Retrigger");
@@ -98,20 +98,34 @@ struct SplitStack : Module {
 					lights[STACK_LIGHT].setBrightness(0.f);
 					params[STACK_PARAM].setValue(0.f);
 				}
-				learnedSplitPoint = false;
 			}
+			learnedSplitPoint = false;
 		}
 
 		lastSplitParamValue = params[SPLIT_PARAM].getValue();
 
+		paramQuantities[SPLIT_PARAM]->description = "off";
+		if (split)
+		{
+			paramQuantities[SPLIT_PARAM]->description = "on";
+		}
 
 		// learn split point
-		if (params[SPLIT_PARAM].getValue())
+		if (split && params[SPLIT_PARAM].getValue())
 		{
-			for (int c = 0; c < channels; c += 4) {
-				// TODO
+			paramQuantities[SPLIT_PARAM]->description = "learn split point";
+			for (int c = 0; c < channels; c += 1) {
+				float gate = inputs[GATE_INPUT].getVoltage(c);
 
-				oldGates[c/4] = inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c);
+				if (gate > oldGates[c] + 1.f)
+				{
+					splitPoint = inputs[VOCT_INPUT].getVoltage(c);
+					learnedSplitPoint = true;
+					oldGates[c] = gate;
+					break;
+				}
+
+				oldGates[c] = gate;
 			}
 		}
 

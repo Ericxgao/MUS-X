@@ -908,7 +908,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 	void processUi()
 	{
 		bool reconfigureUi = false;
-		channels = std::max(1, inputs[VOCT_INPUT].getChannels());
+		channels = inputs[VOCT_INPUT].getChannels();
 
 		outputs[INDIVIDUAL_MOD_1_OUTPUT].setChannels(channels);
 		outputs[INDIVIDUAL_MOD_2_OUTPUT].setChannels(channels);
@@ -1291,6 +1291,14 @@ struct Synth : ModuleWithCustomParamContextMenu {
 		if (uiDivider.process())
 		{
 			processUi();
+		}
+
+		if (!channels)
+		{
+			// no input connected
+			outputs[OUT_L_OUTPUT].setVoltage(0.f);
+			outputs[OUT_R_OUTPUT].setVoltage(0.f);
+			return;
 		}
 
 		if (modDivider.process())

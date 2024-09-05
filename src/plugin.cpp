@@ -20,6 +20,7 @@ void init(Plugin* p) {
 	p->addModel(modelOnePole);
 	p->addModel(modelOnePoleLP);
 	p->addModel(modelOscillators);
+	p->addModel(modelSplitStack);
 	p->addModel(modelSynth);
 	p->addModel(modelTuner);
 

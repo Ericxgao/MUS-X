@@ -133,6 +133,14 @@
         "Polyphonic"
       ],
       "manualUrl": "https://github.com/Jojosito/MUS-X#synth"
+    },
+    {
+      "slug": "SplitStack",
+      "name": "Split/Stack",
+      "description": "Helper for splitting or layering two synthesizer parts",
+      "tags": [
+        "Utility"
+      ]
     }
   ]
 }

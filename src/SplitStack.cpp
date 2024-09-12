@@ -44,7 +44,7 @@ struct SplitStack : Module {
 	bool split = false;
 	bool learnedSplitPoint = false;
 	float splitPoint = 0.f;
-	float oldGates[16] = {0.f};
+	float_4 oldGates[4] = {0.f};
 
 	SplitStack() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -139,15 +139,12 @@ struct SplitStack : Module {
 			for (int c = 0; c < channels; c += 1) {
 				float gate = inputs[GATE_INPUT].getVoltage(c);
 
-				if (gate > oldGates[c] + 1.f)
+				if (gate > oldGates[c/4][c%4] + 1.f)
 				{
 					splitPoint = inputs[VOCT_INPUT].getVoltage(c);
 					learnedSplitPoint = true;
-					oldGates[c] = gate;
 					break;
 				}
-
-				oldGates[c] = gate;
 			}
 		}
 
@@ -160,29 +157,31 @@ struct SplitStack : Module {
 						inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c) >= splitPoint;
 
 				outputs[VOCT_A_OUTPUT].channels = channels;
-				outputs[VOCT_A_OUTPUT].setVoltageSimd(mask & inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[VOCT_A_OUTPUT].setVoltageSimd(~mask & inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c), c);
 				outputs[VOCT_B_OUTPUT].channels = channels;
-				outputs[VOCT_B_OUTPUT].setVoltageSimd(~mask & inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[VOCT_B_OUTPUT].setVoltageSimd(mask & inputs[VOCT_INPUT].getPolyVoltageSimd<float_4>(c), c);
 
 				outputs[GATE_A_OUTPUT].channels = channels;
-				outputs[GATE_A_OUTPUT].setVoltageSimd(mask & inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[GATE_A_OUTPUT].setVoltageSimd(~mask & inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c), c);
 				outputs[GATE_B_OUTPUT].channels = channels;
-				outputs[GATE_B_OUTPUT].setVoltageSimd(~mask & inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[GATE_B_OUTPUT].setVoltageSimd(mask & inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c), c);
 
 				outputs[VEL_A_OUTPUT].channels = channels;
-				outputs[VEL_A_OUTPUT].setVoltageSimd(mask & inputs[VEL_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[VEL_A_OUTPUT].setVoltageSimd(~mask & inputs[VEL_INPUT].getPolyVoltageSimd<float_4>(c), c);
 				outputs[VEL_B_OUTPUT].channels = channels;
-				outputs[VEL_B_OUTPUT].setVoltageSimd(~mask & inputs[VEL_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[VEL_B_OUTPUT].setVoltageSimd(mask & inputs[VEL_INPUT].getPolyVoltageSimd<float_4>(c), c);
 
 				outputs[AFT_A_OUTPUT].channels = channels;
-				outputs[AFT_A_OUTPUT].setVoltageSimd(mask & inputs[AFT_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[AFT_A_OUTPUT].setVoltageSimd(~mask & inputs[AFT_INPUT].getPolyVoltageSimd<float_4>(c), c);
 				outputs[AFT_B_OUTPUT].channels = channels;
-				outputs[AFT_B_OUTPUT].setVoltageSimd(~mask & inputs[AFT_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[AFT_B_OUTPUT].setVoltageSimd(mask & inputs[AFT_INPUT].getPolyVoltageSimd<float_4>(c), c);
 
 				outputs[RETRIG_A_OUTPUT].channels = channels;
-				outputs[RETRIG_A_OUTPUT].setVoltageSimd(mask & inputs[RETRIG_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[RETRIG_A_OUTPUT].setVoltageSimd(~mask & inputs[RETRIG_INPUT].getPolyVoltageSimd<float_4>(c), c);
 				outputs[RETRIG_B_OUTPUT].channels = channels;
-				outputs[RETRIG_B_OUTPUT].setVoltageSimd(~mask & inputs[RETRIG_INPUT].getPolyVoltageSimd<float_4>(c), c);
+				outputs[RETRIG_B_OUTPUT].setVoltageSimd(mask & inputs[RETRIG_INPUT].getPolyVoltageSimd<float_4>(c), c);
+
+				oldGates[c/4] = inputs[GATE_INPUT].getPolyVoltageSimd<float_4>(c);
 			}
 		}
 
@@ -251,7 +250,7 @@ struct SplitStack : Module {
 struct SplitStackWidget : ModuleWidget {
 	SplitStackWidget(SplitStack* module) {
 		setModule(module);
-		setPanel(createPanel(asset::plugin(pluginInstance, "res/SplitStack.svg")), createPanel(asset::plugin(pluginInstance, "res/SplitStack-dark.svg")));
+		setPanel(createPanel(asset::plugin(pluginInstance, "res/SplitStack.svg"), asset::plugin(pluginInstance, "res/SplitStack-dark.svg")));
 
 		addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
 		addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));

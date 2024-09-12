@@ -1,3 +1,5 @@
+#pragma once
+
 #include <rack.hpp>
 
 namespace musx {
@@ -29,18 +31,15 @@ struct TOnePole {
 	*/
 	void setCutoffFreq(T f) {
 		T x;
-		//if (typeid(T) == typeid(float_4))
-		//{
-			f = simd::fmin(f, 0.3);
-			x = simd::exp(-2.0f * M_PI * f);
-		/*}
-		else
-		{
-			f = std::fmin(f, 0.3);
-			x = std::exp(-2.0f * M_PI * f);
-		}*/
+		f = fmin(f, 0.3);
+		x = exp(-2.0f * M_PI * f);
 		a = 1.0f - x;
 		b = -x;
+	}
+
+	void copyCutoffFreq(TOnePole<T> other) {
+		a = other.a;
+		b = other.b;
 	}
 
 	void process(T x) {
@@ -53,6 +52,24 @@ struct TOnePole {
 		return tmp;
 	}
 
+	inline void processLowpassBlock(float_4* in, int oversamplingRate)
+	{
+		for (int i = 0; i < oversamplingRate; ++i)
+		{
+			process(in[i]);
+			in[i] = tmp;
+		}
+	}
+
+	inline void processHighpassBlock(float_4* in, int oversamplingRate)
+	{
+		for (int i = 0; i < oversamplingRate; ++i)
+		{
+			process(in[i]);
+			in[i] -= tmp;
+		}
+	}
+
 	T lowpass()
 	{
 		return tmp;
@@ -61,6 +78,75 @@ struct TOnePole {
 	T highpass()
 	{
 		return in - tmp;
+	}
+};
+
+/**
+ * 1 pole zdf lowpass/highpass
+ */
+template <typename T = float>
+struct TOnePoleZDF {
+	T g = 0.f;
+	T x;
+	T y;
+	T z;
+
+	TOnePoleZDF() {
+		reset();
+	}
+
+	void reset() {
+		x = {0.f};
+		y = {0.f};
+		z = {0.f};
+	}
+
+	/** Sets the cutoff frequency.
+	`f` is the ratio between the cutoff frequency and sample rate, i.e. f = f_c / f_s
+	*/
+	void setCutoffFreq(T f) {
+		f = M_PI * f;
+		g = f / (1. + f);
+	}
+
+	void copyCutoffFreq(TOnePoleZDF<T> other) {
+		g = other.g;
+	}
+
+	void setState(T state, T mask)
+	{
+		x += mask & (state - x);
+		y += mask & (state - y);
+		z += mask & (state - z);
+	}
+
+	void process(T in) {
+		x = in;
+		T v = (x - z) * g;
+		y = v + z;
+		z = y + v;
+	}
+
+	// process, but don't update internal state z
+	void processDry(T in) {
+		x = in;
+		T v = (x - z) * g;
+		y = v + z;
+	}
+
+	inline T processLowpass(T in) {
+		process(in);
+		return y;
+	}
+
+	T lowpass()
+	{
+		return y;
+	}
+
+	T highpass()
+	{
+		return x - y;
 	}
 };
 
@@ -91,16 +177,8 @@ struct TFourPole {
 	*/
 	void setCutoffFreq(T f) {
 		T x;
-		//if (typeid(T) == typeid(float_4))
-		//{
-			f = simd::fmin(f, 0.3);
-			x = simd::exp(-2.0f * M_PI * f);
-		/*}
-		else
-		{
-			f = std::fmin(f, 0.3);
-			x = std::exp(-2.0f * M_PI * f);
-		}*/
+		f = fmin(f, 0.3);
+		x = exp(-2.0f * M_PI * f);
 		a = 1.0f - x;
 		b = -x;
 	}
@@ -191,30 +269,15 @@ struct TSVF {
 	`f` is the ratio between the cutoff frequency and sample rate, i.e. f = f_c / f_s
 	*/
 	void setCutoffFreq(T f) {
-		//if (typeid(T) == typeid(float_4))
-		//{
-			f = simd::clamp(f, 0.001, 0.2f);
-			c = 2.f * simd::sin(M_PI * f);
-		/*}
-		else
-		{
-			f = std::fmin(std::fmax(f, 0.001), 0.2f);
-			c = 2.f * std::sin(M_PI * f);
-		}*/
+		f = clamp(f, 0.001, 0.2f);
+		c = 2.f * sin(M_PI * f);
 	}
 
 	/**
 	 * Set resonance between 0 and 1
 	 */
 	void setResonance(T r) {
-		//if (typeid(T) == typeid(float_4))
-		//{
-			q = simd::clamp(1.f - r, 0.f, 1.f);
-		/*}
-		else
-		{
-			q = std::fmin(std::fmax(1.f - r, 0.f), 1.f);
-		}*/
+		q = clamp(1.f - r, 0.f, 1.f);
 		scale = q;
 	}
 
@@ -232,6 +295,134 @@ struct TSVF {
 	}
 	T bandpass() {
 		return bp;
+	}
+};
+
+
+/**
+ * (2*O)th order biquad filters to filter out high frequency content between modules
+ */
+template <typename T = float, size_t O = 2>
+struct AliasReductionFilter
+{
+	dsp::TBiquadFilter<T> filter[O];
+
+	AliasReductionFilter()
+	{
+		static_assert(O > 0, "Order must be > 0");
+		setParameters(0.25);
+	}
+
+	/**
+	f: normalized frequency (cutoff frequency / sample rate), must be less than 0.5
+	Q: quality factor
+	*/
+	void setParameters(float f, float Q = 0.75f)
+	{
+		f = clamp(f, 0.f, 0.5f);
+		for (size_t i = 0; i < O; i++)
+		{
+			filter[i].setParameters(dsp::TBiquadFilter<float_4>::LOWPASS, f, Q, 1.f);
+		}
+	}
+
+	void setCutoffFreq(float f)
+	{
+		setParameters(f);
+	}
+
+	T process(T in)
+	{
+		T out = in;
+		for (size_t i = 0; i < O; i++)
+		{
+			out = filter[i].process(out);
+		}
+		return out;
+	}
+
+	T processLowpass(T in)
+	{
+		return process(in);
+	}
+
+	void processLowpassBlock(T* in, int oversamplingRate)
+	{
+		for (int i = 0; i < oversamplingRate; ++i)
+		{
+			in[i] = processLowpass(in[i]);
+		}
+	}
+};
+
+
+struct CombFilter
+{
+	static const int delayLineSize = 2 << 16;
+	float_4 delayLine[delayLineSize] = {0};
+	int index = 0;
+
+	float_4 freq = 0;
+	float_4 feedback = 0;
+
+	// set frequency in Hz
+	void setFreq(float_4 f)
+	{
+		freq = clamp(f, 20.f, 44000.f);
+	}
+
+	// [0..5]
+	void setFeedback(float_4 f)
+	{
+		feedback = 1.f - clamp(f, 0.f, 5.f) / 5.f;
+		feedback = feedback * feedback;
+		feedback = 1.0f - feedback;
+	}
+
+	void setNegativeFeedback(float_4 f)
+	{
+		setFeedback(f);
+		feedback *= -1.f;
+	}
+
+	void reset()
+	{
+		std::memset(&delayLine, 0, delayLineSize * sizeof(float_4));
+	}
+
+	// dt in seconds
+	float_4 process(float_4 in, float_4 dt)
+	{
+		// read from delay line
+		float_4 out = 0.f;
+		float_4 fractionalOffset = dt * freq;
+		fractionalOffset = fmin(1.f / fractionalOffset, delayLineSize - 1);
+
+
+		for (size_t i = 0; i < 4; ++i)
+		{
+			int offsetFloor = fractionalOffset[i];
+			int readIndex = index - offsetFloor - 1;
+			readIndex += (readIndex < 0) * delayLineSize;
+
+			out[i] = delayLine[readIndex][i];
+
+			int readIndex2 = readIndex + 1;
+			readIndex2 &= delayLineSize-1;
+
+			float frac = fractionalOffset[i] - offsetFloor;
+
+			out[i] = crossfade(delayLine[readIndex2][i], delayLine[readIndex][i], frac);
+		}
+
+		// write to delay line
+		delayLine[index] = clamp(in + feedback * out , -100.f, 100.f);
+
+		// advance index
+		++index;
+		index &= delayLineSize-1;
+
+		return out;
 	}
 };
 

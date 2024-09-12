@@ -1,10 +1,9 @@
 #include "plugin.hpp"
+#include "blocks/LFOBlock.hpp"
 
 namespace musx {
 
 using namespace rack;
-using simd::float_4;
-using simd::int32_4;
 
 struct LFO : Module {
 	enum ParamId {
@@ -28,28 +27,18 @@ struct LFO : Module {
 		LIGHTS_LEN
 	};
 
-	const int octaveRange = 10;
-	const float minFreq = 2 * std::pow(2, -octaveRange); // Hz
-	const float maxFreq = 2 * std::pow(2,  octaveRange); // Hz
-	const float logMaxOverMin = std::log(maxFreq/minFreq); // log(maxFreq/minFreq)
-
 	int channels = 1;
 
-	int sampleRateReduction = 1;
+	const int octaveRange = 10;
+	musx::LFOBlock lfoBlock[4];
 	bool bipolar = true;
 
-	// integers overflow, so phase resets automatically
-	int32_4 phasor[4] = {0};
-
-	float_4 wave[4] = {0}; // -1..1
-
-	float_4 reset[4] = {0};
-
+	int sampleRateReduction = 1;
 	dsp::ClockDivider divider;
 
 	LFO() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configSwitch(SHAPE_PARAM, 0.f, 7.f, 0.f, "Shape", {"Sine", "Triangle", "Square", "Pulse", "Ramp", "Saw", "Sample & hold", "Warped"});
+		configSwitch(SHAPE_PARAM, 0.f, LFOBlock::getShapeLabels().size() - 1, 0.f, "Shape", LFOBlock::getShapeLabels());
 		getParamQuantity(SHAPE_PARAM)->snapEnabled = true;
 		configParam(FREQ_PARAM, -octaveRange, octaveRange, 0.f, "Frequency", " Hz", 2., 2.);
 		configParam(AMP_PARAM, 0.f, 5.f, 5.f, "Amplitude", " V");
@@ -60,9 +49,21 @@ struct LFO : Module {
 		configOutput(OUT_OUTPUT, "LFO");
 	}
 
+	void onSampleRateChange(const SampleRateChangeEvent& e) override
+	{
+		for (int c = 0; c < 16; c += 4)
+		{
+			lfoBlock[c/4].setSampleRate(e.sampleRate);
+		}
+	}
+
 	void setSampleRateReduction(int arg)
 	{
 		sampleRateReduction = arg;
+		for (int c = 0; c < 16; c += 4)
+		{
+			lfoBlock[c/4].setSampleRateReduction(sampleRateReduction);
+		}
 		divider.setDivision(sampleRateReduction);
 	}
 
@@ -84,70 +85,23 @@ struct LFO : Module {
 			float_4 rand4 = {rand, rand, rand, rand};
 
 			for (int c = 0; c < channels; c += 4) {
-				int32_4 lastPhasor = phasor[c/4];
 
-				// reset
-				float_4 lastReset = reset[c/4];
-				reset[c/4] = params[RESET_PARAM].getValue() + inputs[RESET_INPUT].getPolyVoltageSimd<float_4>(c);
+				lfoBlock[c/4].setRand(rand4);
+				lfoBlock[c/4].setShape(params[SHAPE_PARAM].getValue());
+				lfoBlock[c/4].setFrequencyVOct(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c));
+				lfoBlock[c/4].setAmp(params[AMP_PARAM].getValue() + inputs[AMP_INPUT].getPolyVoltageSimd<float_4>(c));
+				lfoBlock[c/4].setReset(params[RESET_PARAM].getValue() + inputs[RESET_INPUT].getPolyVoltageSimd<float_4>(c));
 
-				phasor[c/4] = simd::ifelse(reset[c/4] > lastReset + 0.5, -INT32_MAX, phasor[c/4]);
+				lfoBlock[c/4].process();
 
-				// frequencies, phase increments, factors etc
-				float_4 freq = 2. * dsp::exp2_taylor5(params[FREQ_PARAM].getValue() + inputs[FREQ_INPUT].getPolyVoltageSimd<float_4>(c));
-				int32_4 phaseInc = INT32_MAX / args.sampleRate * freq * sampleRateReduction;
-
-				float_4 doSample;
-
-				switch((int)params[SHAPE_PARAM].getValue())
+				if (bipolar)
 				{
-					case 0:
-						// sine
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = -1. * simd::sin((float_4)(phasor[c/4]/INT32_MAX)*M_PI);
-						break;
-					case 1:
-						// tri
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = 2. * simd::ifelse(phasor[c/4] < 0, (float_4)(phasor[c/4]/INT32_MAX), -(float_4)(phasor[c/4]/INT32_MAX)) + 1.;
-						break;
-					case 2:
-						// square
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = 2. * (float_4)(phasor[c/4] > 0 * 2. - 1.) + 1.;
-						break;
-					case 3:
-						// pulse
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = 2. * (float_4)(phasor[c/4] > -INT32_MAX/4 * 2. - 1.) + 1.;
-						break;
-					case 4:
-						// ramp
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = (float_4)(phasor[c/4]/INT32_MAX);
-						break;
-					case 5:
-						// saw
-						phasor[c/4] += 2*phaseInc;
-						wave[c/4] = -(float_4)(phasor[c/4]/INT32_MAX);
-						break;
-					case 6:
-						// s&h
-						phasor[c/4] += 4*phaseInc;
-						doSample = -(lastPhasor > phasor[c/4]);
-						wave[c/4] -= doSample * wave[c/4]; // if doSample, set to 0
-						wave[c/4] += doSample * (2. * rand4 - 1.f); // if doSample, set to random value
-						break;
-					case 7:
-						// warped
-						phasor[c/4] += phaseInc;
-						wave[c/4] = 2./3.26 * (simd::sin((float_4)(phasor[c/4]/INT32_MAX)*M_PI) - simd::sin((float_4)(2*phasor[c/4]/INT32_MAX)*M_PI + 0.4 * M_PI)) - 0.22;
-						break;
+					outputs[OUT_OUTPUT].setVoltageSimd(lfoBlock[c/4].getBipolar(), c);
 				}
-
-				// unipolar/bipolar, amplitude
-				float offset = 1 - bipolar;
-				float_4 amp = params[AMP_PARAM].getValue() + inputs[AMP_INPUT].getPolyVoltageSimd<float_4>(c);
-				outputs[OUT_OUTPUT].setVoltageSimd(amp*(wave[c/4] + offset), c);
+				else
+				{
+					outputs[OUT_OUTPUT].setVoltageSimd(lfoBlock[c/4].getUnipolar(), c);
+				}
 			}
 
 		}

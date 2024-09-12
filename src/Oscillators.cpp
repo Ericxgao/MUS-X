@@ -1,7 +1,7 @@
 #include "plugin.hpp"
+#include "blocks/OscillatorsBlock.hpp"
 #include "dsp/decimator.hpp"
 #include "dsp/filters.hpp"
-#include "dsp/functions.hpp"
 
 namespace musx {
 
@@ -47,43 +47,29 @@ struct Oscillators : Module {
 		LIGHTS_LEN
 	};
 
-	static const int maxOversamplingRate = 1024;
-	static const int minFreq = 0.0001f; // min frequency of the oscillators in Hz
-	static const int maxFreq = 20000.f; // max frequency of the oscillators in Hz
+	static const size_t maxOversamplingRate = 1024;
+
+	OscillatorsBlock<maxOversamplingRate> oscBlock[4];
 
 	bool lfoMode = false;
 
-	int sampleRate = 48000;
-	int oversamplingRate = 16;
-	int actualOversamplingRate = 16;
+	size_t sampleRate = 48000;
+	size_t oversamplingRate = 8;
+	size_t actualOversamplingRate = oversamplingRate;
 
 	HalfBandDecimatorCascade<float_4> decimator[4];
 
 	int channels = 1;
 
-	// integers overflow, so phase resets automatically
-	int32_4 phasor1Sub[4] = {0};
-	int32_4 phasor2[4] = {0};
-
-	float_4 mix[4][maxOversamplingRate] = {0};
-
-	// CV modulated parameters
-	float_4 osc1Shape[4] = {0};
-	float_4 osc1PW[4] = {0};
-	float_4 osc1Vol[4] = {0};
-	float_4 osc1Subvol[4] = {0};
-
-	float_4 osc2Shape[4] = {0};
-	float_4 osc2PW[4] = {0};
-	float_4 osc2Vol[4] = {0};
-
-	float_4 fm[4] = {0};
-	float_4 ringmod[4] = {0};
-
 	bool dcBlock = true;
 	musx::TOnePole<float_4> dcBlocker[4];
+	bool saturate = true;
+	musx::AntialiasedCheapSaturator<float_4> saturator[4];
+
+	bool antiAliasing = true;
 
 	dsp::ClockDivider lightDivider;
+
 
 	Oscillators() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -116,26 +102,28 @@ struct Oscillators : Module {
 
 	void onSampleRateChange(const SampleRateChangeEvent& e) override {
 		sampleRate = e.sampleRate;
+		for (int c = 0; c < 16; c += 4) {
+			oscBlock[c/4].setSampleRate(sampleRate);
+		}
 		setOversamplingRate(oversamplingRate);
 	}
 
-	void setOversamplingRate(int arg)
+	void setOversamplingRate(size_t arg)
 	{
 		oversamplingRate = arg;
+		setLfoMode(lfoMode); // refresh actualOversamplingRate
 
-		// reset phasors and mix
 		for (int c = 0; c < 16; c += 4) {
-			phasor1Sub[c/4] = 0.f;
-			phasor2[c/4] = 0.f;
-
-			for (int i = 0; i < maxOversamplingRate; ++i)
-			{
-				mix[c/4][i] = 0.f;
-			}
-
+			oscBlock[c/4].setOversamplingRate(actualOversamplingRate);
 			decimator[c/4].reset();
 			dcBlocker[c/4].setCutoffFreq(20.f/sampleRate/oversamplingRate);
 		}
+	}
+
+	void setLfoMode(int mode)
+	{
+		lfoMode = mode;
+		actualOversamplingRate = lfoMode? 1 : oversamplingRate;
 	}
 
 	void process(const ProcessArgs& args) override {
@@ -144,101 +132,70 @@ struct Oscillators : Module {
 		outputs[OUT_OUTPUT].setChannels(channels);
 
 		for (int c = 0; c < channels; c += 4) {
+
 			// parameters and CVs
-			osc1Shape[c/4] 	= simd::clamp(params[OSC1SHAPE_PARAM].getValue() + 0.2f *inputs[OSC1SHAPE_INPUT].getPolyVoltageSimd<float_4>(c), -1.f, 1.f);
-			osc1PW[c/4] 	= simd::clamp(params[OSC1PW_PARAM].getValue() 	 + 0.2f *inputs[OSC1PW_INPUT].getPolyVoltageSimd<float_4>(c),    -1.f, 1.f);
-			osc1Vol[c/4] 	= simd::clamp(params[OSC1VOL_PARAM].getValue()   + 0.1f *inputs[OSC1VOL_INPUT].getPolyVoltageSimd<float_4>(c),    0.f, 1.f);
-			osc1Vol[c/4]   *= 10.f / INT32_MAX;
-			osc1Subvol[c/4] = simd::clamp(params[OSC1SUBVOL_PARAM].getValue() + 0.1f *inputs[OSC1SUBVOL_INPUT].getPolyVoltageSimd<float_4>(c), 0.f, 1.f);
-			osc1Subvol[c/4]   *= 10.f / INT32_MAX;
+			oscBlock[c/4].setOsc1Shape(params[OSC1SHAPE_PARAM].getValue() + 0.2f *inputs[OSC1SHAPE_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setOsc1PW(params[OSC1PW_PARAM].getValue() 	 + 0.2f *inputs[OSC1PW_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setOsc1Vol(params[OSC1VOL_PARAM].getValue()   + 0.1f *inputs[OSC1VOL_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setOsc1Subvol(params[OSC1SUBVOL_PARAM].getValue() + 0.1f *inputs[OSC1SUBVOL_INPUT].getPolyVoltageSimd<float_4>(c));
 
-			osc2Shape[c/4] 	= simd::clamp(params[OSC2SHAPE_PARAM].getValue() + 0.2f *inputs[OSC2SHAPE_INPUT].getPolyVoltageSimd<float_4>(c), -1.f, 1.f);
-			osc2PW[c/4] 	= simd::clamp(params[OSC2PW_PARAM].getValue() 	 + 0.2f *inputs[OSC2PW_INPUT].getPolyVoltageSimd<float_4>(c),    -1.f, 1.f);
-			osc2Vol[c/4] 	= simd::clamp(params[OSC2VOL_PARAM].getValue()   + 0.1f *inputs[OSC2VOL_INPUT].getPolyVoltageSimd<float_4>(c),    0.f, 1.f);
-			osc2Vol[c/4]   *= 10.f / INT32_MAX;
+			oscBlock[c/4].setOsc2Shape(params[OSC2SHAPE_PARAM].getValue() + 0.2f *inputs[OSC2SHAPE_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setOsc2PW(params[OSC2PW_PARAM].getValue() 	 + 0.2f *inputs[OSC2PW_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setOsc2Vol(params[OSC2VOL_PARAM].getValue()   + 0.1f *inputs[OSC2VOL_INPUT].getPolyVoltageSimd<float_4>(c));
 
-			fm[c/4] 		= simd::clamp(params[FM_INPUT].getValue()  + 0.1f *inputs[FM_INPUT].getPolyVoltageSimd<float_4>(c),  0.f, 1.f);
-			fm[c/4] 		= fm[c/4] * fm[c/4] * 0.5f / oversamplingRate; // scale
-			ringmod[c/4]  	= simd::clamp(params[RINGMOD_PARAM].getValue() + 0.1f *inputs[RINGMOD_INPUT].getPolyVoltageSimd<float_4>(c), 0.f, 1.f);
-			ringmod[c/4]   *= 10.f / INT32_MAX / INT32_MAX;
+			oscBlock[c/4].setSync(params[SYNC_PARAM].getValue() + inputs[SYNC_INPUT].getPolyVoltageSimd<float_4>(c) / 5.f);
+			oscBlock[c/4].setFmAmount(params[FM_INPUT].getValue()  + 0.1f *inputs[FM_INPUT].getPolyVoltageSimd<float_4>(c));
+			oscBlock[c/4].setRingmodVol(params[RINGMOD_PARAM].getValue() + 0.1f *inputs[RINGMOD_INPUT].getPolyVoltageSimd<float_4>(c));
 
-			int32_4 sync = simd::round(clamp(params[SYNC_PARAM].getValue() + inputs[SYNC_INPUT].getPolyVoltageSimd<float_4>(c) / 5.f, 0.f, 1.f));
 
-			// frequencies, phase increments, factors etc
-			float_4 freq1 = dsp::FREQ_C4 * dsp::exp2_taylor5(inputs[OSC1VOCT_INPUT].getVoltageSimd<float_4>(c));
-			float_4 freq2 = dsp::FREQ_C4 * dsp::exp2_taylor5(inputs[OSC2VOCT_INPUT].getPolyVoltageSimd<float_4>(c));
-
-			actualOversamplingRate = oversamplingRate;
+			// frequencies
 			if (lfoMode)
 			{
-				// bring frequency down to 2 Hz @ 0V CV/Oct input
-				freq1 *= 2. / dsp::FREQ_C4;
-				freq2 *= 2. / dsp::FREQ_C4;
-
-				actualOversamplingRate = 1;
+				oscBlock[c/4].setOsc1FreqVOctLFO(inputs[OSC1VOCT_INPUT].getVoltageSimd<float_4>(c));
+				oscBlock[c/4].setOsc2FreqVOctLFO(inputs[OSC2VOCT_INPUT].getPolyVoltageSimd<float_4>(c));
+			}
+			else
+			{
+				oscBlock[c/4].setOsc1FreqVOct(inputs[OSC1VOCT_INPUT].getVoltageSimd<float_4>(c));
+				oscBlock[c/4].setOsc2FreqVOct(inputs[OSC2VOCT_INPUT].getPolyVoltageSimd<float_4>(c));
 			}
 
-			freq1 = simd::clamp(freq1, minFreq, maxFreq);
-			freq2 = simd::clamp(freq2, minFreq, maxFreq);
 
-
-			int32_4 phase1SubInc = INT32_MAX / args.sampleRate * freq1 / actualOversamplingRate;
-			int32_4 phase1Inc = phase1SubInc + phase1SubInc;
-			float_4 tri1Amt = 2.f * simd::fmax(-osc1Shape[c/4], 0.f);  // [2, 0, 0]
-			float_4 sawSq1Amt = simd::fmin(1.f + osc1Shape[c/4], 1.f); // [0, 1, 1]
-			float_4 sq1Amt = simd::fmax(osc1Shape[c/4], 0.f);          // [0, 0, 1]
-			int32_4 phase1Offset = simd::ifelse(osc1PW[c/4] < 0, (-1.f - osc1PW[c/4]) * INT32_MAX, (1.f - osc1PW[c/4]) * INT32_MAX); // for pulse wave = saw + inverted saw with phaseshift
-
-			int32_4 phase2Inc = INT32_MAX / args.sampleRate * freq2 / actualOversamplingRate * 2;
-			float_4 tri2Amt = 2.f * simd::fmax(-osc2Shape[c/4], 0.f);
-			float_4 sawSq2Amt = simd::fmin(1.f + osc2Shape[c/4], 1.f);
-			float_4 sq2Amt = simd::fmax(osc2Shape[c/4], 0.f);
-			int32_4 phase2Offset = simd::ifelse(osc2PW[c/4] < 0, (-1.f - osc2PW[c/4]) * INT32_MAX, (1.f - osc2PW[c/4]) * INT32_MAX); // for pulse wave
-
-			// calculate the oversampled oscillators and mix
+			// calculate the oversampled oscillators
 			float_4* inBuffer = decimator[c/4].getInputArray(actualOversamplingRate);
 
-			bool calcDcBlock = dcBlock && !lfoMode;
-
-			for (int i = 0; i < actualOversamplingRate; ++i)
+			if (antiAliasing)
 			{
-				// phasors for subosc 1 and osc 1
-				phasor1Sub[c/4] += phase1SubInc;
-				int32_4 phasor1 = phasor1Sub[c/4] + phasor1Sub[c/4];
-				int32_4 phasor1Offset = phasor1 + phase1Offset;
+				oscBlock[c/4].processBandlimited(inBuffer);
+			}
+			else
+			{
+				oscBlock[c/4].process(inBuffer);
+			}
 
-				// osc 1 waveform
-				float_4 wave1 = tri1Amt * ((1.f*phasor1Offset + (phasor1Offset > 0) * 2.f * phasor1Offset) + INT32_MAX/2); // +-INT32_MAX
-				wave1 += sawSq1Amt * (phasor1Offset * sq1Amt - 1.f * phasor1); // +-INT32_MAX
-
-				// osc 1 suboscillator
-				float_4 sub1 = 1.f * (phasor1Sub[c/4] + INT32_MAX) - 1.f * phasor1Sub[c/4]; // +-INT32_MAX
-
-				// phasor for osc 2
-				phasor2[c/4] += phase2Inc + int32_4(fm[c/4] * wave1);
-
-				// sync / reset phasor2 ?
-				phasor2[c/4] -= (sync & (phasor1 + phase1Inc < phasor1)) * (phasor2[c/4] + INT32_MAX);
-				int32_4 phasor2Offset = phasor2[c/4] + phase2Offset;
-
-				// osc 2 waveform
-				float_4 wave2 = tri2Amt * ((1.f*phasor2Offset + (phasor2Offset > 0) * 2.f * phasor2Offset) + INT32_MAX/2); // +-INT32_MAX
-				wave2 += sawSq2Amt * (phasor2Offset * sq2Amt - 1.f * phasor2[c/4]); // +-INT32_MAX
-
-				// mix
-				float_4 out = osc1Subvol[c/4] * sub1 + osc1Vol[c/4] * wave1 + osc2Vol[c/4] * wave2 + ringmod[c/4] * wave1 * wave2; // +-5V each
-
+			// dc blocker and saturator
+			bool calcDcBlock = dcBlock && !lfoMode;
+			for (size_t i = 0; i < actualOversamplingRate; ++i)
+			{
 				// DC blocker
 				if (calcDcBlock)
 				{
-					dcBlocker[c/4].process(out);
-					out = dcBlocker[c/4].highpass();
+					dcBlocker[c/4].process(inBuffer[i]);
+					inBuffer[i] = dcBlocker[c/4].highpass();
 				}
 
-				// saturator +-10V
-				out = musx::cheapSaturator(out);
-
-				inBuffer[i] = out;
+				// saturator +-13V
+				if (saturate)
+				{
+					if (antiAliasing)
+					{
+						inBuffer[i] = saturator[c/4].processBandlimited(inBuffer[i]);
+					}
+					else
+					{
+						inBuffer[i] = saturator[c/4].processNonBandlimited(inBuffer[i]);
+					}
+				}
 			}
 
 			// downsampling
@@ -256,7 +213,9 @@ struct Oscillators : Module {
 	json_t* dataToJson() override {
 		json_t* rootJ = json_object();
 		json_object_set_new(rootJ, "oversamplingRate", json_integer(oversamplingRate));
+		json_object_set_new(rootJ, "antiAliasing", json_boolean(antiAliasing));
 		json_object_set_new(rootJ, "dcBlock", json_boolean(dcBlock));
+		json_object_set_new(rootJ, "saturate", json_boolean(saturate));
 		json_object_set_new(rootJ, "lfoMode", json_boolean(lfoMode));
 		return rootJ;
 	}
@@ -267,10 +226,20 @@ struct Oscillators : Module {
 		{
 			setOversamplingRate(json_integer_value(oversamplingRateJ));
 		}
+		json_t* antiAliasingJ = json_object_get(rootJ, "antiAliasing");
+		if (antiAliasingJ)
+		{
+			antiAliasing = (json_boolean_value(antiAliasingJ));
+		}
 		json_t* dcBlockJ = json_object_get(rootJ, "dcBlock");
 		if (dcBlockJ)
 		{
 			dcBlock = (json_boolean_value(dcBlockJ));
+		}
+		json_t* saturateJ = json_object_get(rootJ, "saturate");
+		if (saturateJ)
+		{
+			saturate = (json_boolean_value(saturateJ));
 		}
 		json_t* lfoModeJ = json_object_get(rootJ, "lfoMode");
 		if (lfoModeJ)
@@ -325,10 +294,19 @@ struct OscillatorsWidget : ModuleWidget {
 
 		menu->addChild(createIndexSubmenuItem("Oversampling rate", {"1x", "2x", "4x", "8x", "16x", "32x", "64x", "128x", "256x", "512x", "1024x"},
 			[=]() {
-				return log2(module->oversamplingRate);
+				return log2((int)module->oversamplingRate);
 			},
 			[=](int mode) {
-				module->setOversamplingRate(std::pow(2, mode));
+				module->setOversamplingRate((size_t)std::pow(2, mode));
+			}
+		));
+
+		menu->addChild(createBoolMenuItem("Anti-aliasing", "",
+			[=]() {
+				return module->antiAliasing;
+			},
+			[=](int mode) {
+				module->antiAliasing = mode;
 			}
 		));
 
@@ -341,6 +319,15 @@ struct OscillatorsWidget : ModuleWidget {
 			}
 		));
 
+		menu->addChild(createBoolMenuItem("Saturator", "",
+			[=]() {
+				return module->saturate;
+			},
+			[=](int mode) {
+				module->saturate = mode;
+			}
+		));
+
 		menu->addChild(new MenuSeparator);
 
 		menu->addChild(createBoolMenuItem("LFO mode", "",
@@ -348,7 +335,7 @@ struct OscillatorsWidget : ModuleWidget {
 				return module->lfoMode;
 			},
 			[=](int mode) {
-				module->lfoMode = mode;
+				module->setLfoMode(mode);
 			}
 		));
 	}

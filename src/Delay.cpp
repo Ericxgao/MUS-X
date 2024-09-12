@@ -1,6 +1,7 @@
 #include "plugin.hpp"
 #include "dsp/compander.hpp"
 #include "dsp/functions.hpp"
+#include "dsp/odeFilters.hpp"
 
 namespace musx {
 
@@ -58,6 +59,8 @@ struct Delay : Module {
 	float_4 in = 0;
 	int inN = 0;
 	float_4 out = 0;
+	float_4 outBufferFilter = 0; // float[0..1] is in, [2..3] is out
+	float_4 outBufferSaturator = 0; // float[0..1] is in, [2..3] is out
 	float_4 lastOut = 0;
 
 	int oversamplingRate = 8;
@@ -67,17 +70,17 @@ struct Delay : Module {
 	static constexpr float minCutoff = 200.f; // Hz
 	static constexpr float maxCutoff = 10000.f; // Hz
 
-	// input filter
-	musx::TFourPole<float_4> inFilter;
-
-	// output filter
-	musx::TFourPole<float_4> outFilter;
+	// input/output filter (float[0..1] is in, [2..3] is out)
+	musx::SallenKeyFilterLpBp<float_4> inOutFilter1; // 1 and 2 pole
+	musx::SallenKeyFilterLpBp<float_4> inOutFilter2; // additional filter for 3 and 4 pole
 
 	// compressor
 	musx::TCompander<float_4> compander;
 
 	// DC block
 	musx::TOnePole<float_4> dcBlocker;
+
+	musx::AntialiasedCheapSaturator<float_4> inOutSaturator;
 
 	dsp::ClockDivider lightDivider;
 	dsp::ClockDivider knobDivider;
@@ -94,7 +97,7 @@ struct Delay : Module {
 
 
 		configParam(CUTOFF_PARAM, 0.f, 1.f, 0.65f, "Low pass filter cutoff frequency", " Hz", maxCutoff/minCutoff, minCutoff);
-		configParam(RESONANCE_PARAM, 0.f, 0.625f, 0.3125f, "Low pass filter resonance", " %", 0, 160);
+		configParam(RESONANCE_PARAM, 0.f, 1.f, 0.2f, "Low pass filter resonance", " %", 0, 100.f);
 
 		configParam(NOISE_PARAM, 0.f, 0.25f, 0.025f, "Noise level", " %", 0, 400);
 		configParam(BBD_SIZE_PARAM, 8, 14, 12, "BBD delay line size", " buckets", 2);
@@ -153,13 +156,13 @@ struct Delay : Module {
 			delayTimeQty->ParamQuantity::displayMultiplier = minDelayTime;
 
 			// calculate frequencies for anti-aliasing- and reconstruction-filter
-			float_4 cutoffFreq = std::pow(maxCutoff/minCutoff, params[CUTOFF_PARAM].getValue()) * minCutoff / args.sampleRate; // f_c / f_s
+			float_4 cutoffFreq = std::pow(maxCutoff/minCutoff, params[CUTOFF_PARAM].getValue()) * minCutoff; // f_c
 
-			inFilter.setCutoffFreq(cutoffFreq);
-			outFilter.setCutoffFreq(cutoffFreq);
+			inOutFilter1.setCutoffFreq(cutoffFreq);
+			inOutFilter2.setCutoffFreq(cutoffFreq);
 
-			inFilter.setResonance(params[RESONANCE_PARAM].getValue());
-			outFilter.setResonance(params[RESONANCE_PARAM].getValue());
+			inOutFilter1.setResonance(params[RESONANCE_PARAM].getValue() * 1.6f);
+			inOutFilter2.setResonance(params[RESONANCE_PARAM].getValue() * 1.6f);
 
 			// tap tempo
 			++tapCounter;
@@ -196,24 +199,56 @@ struct Delay : Module {
 		if (params[INVERT_PARAM].getValue())
 		{
 			// chorus mode: feedback from delay line 1
-			inMono[0] += (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[0];
+			inMono[0] += 0.7f * (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[0];
 		}
 		else
 		{
 			// output of delay line 0 (l) is is input of delay line 1 (r)
-			inMono[0] += (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[1];
-			inMono[1] = (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[0];
+			inMono[0] += 0.7f * (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[1];
+			inMono[1] = 0.7f * (params[FEEDBACK_PARAM].getValue() + 0.3f * inputs[FEEDBACK_CV_INPUT].getVoltageSum()) * lastOut[0];
 		}
 
 		// saturate
-		inMono = musx::tanh(inMono / 10.f) * 10.f; // +-10V
+		inMono[2] = outBufferSaturator[0];
+		inMono[3] = outBufferSaturator[1];
+		inMono = inOutSaturator.process(inMono);
+		outBufferSaturator[2] = inMono[2];
+		outBufferSaturator[3] = inMono[3];
 
 		// compressor
 		inMono = compander.compress(inMono);
 
 		// anti-aliasing filter
-		inFilter.process(inMono);
-		inMono = inFilter.lowpassN(params[POLES_PARAM].getValue());
+		inMono[2] = outBufferFilter[0];
+		inMono[3] = outBufferFilter[1];
+
+		switch ((int)params[POLES_PARAM].getValue())
+		{
+		case 0:
+			inOutFilter1.process(inMono, args.sampleTime);
+			inMono = inOutFilter1.lowpass6();
+			break;
+		case 1:
+			inOutFilter1.process(inMono, args.sampleTime);
+			inMono = inOutFilter1.lowpass();
+			break;
+		case 2:
+			inOutFilter1.process(inMono, args.sampleTime);
+			inMono = inOutFilter1.lowpass();
+			inOutFilter2.process(inMono, args.sampleTime);
+			inMono = inOutFilter2.lowpass6();
+			break;
+		case 3:
+			inOutFilter1.process(inMono, args.sampleTime);
+			inMono = inOutFilter1.lowpass();
+			inOutFilter2.process(inMono, args.sampleTime);
+			inMono = inOutFilter2.lowpass();
+			break;
+		}
+
+		outBufferFilter[2] = inMono[2];
+		outBufferFilter[3] = inMono[3];
+
 
 		out = 0;
 		// oversampled BBD simulation
@@ -262,14 +297,22 @@ struct Delay : Module {
 		out = dcBlocker.highpass();
 
 		// reconstruction filter
-		outFilter.process(out);
-		out = outFilter.lowpassN(params[POLES_PARAM].getValue());
+		outBufferFilter[0] = out[0];
+		outBufferFilter[1] = out[1];
+
+		out[0] = outBufferFilter[2];
+		out[1] = outBufferFilter[3];
 
 		// expander
 		out = compander.expand(out);
 
 		// saturate
-		out = musx::tanh(out / 10.f) * 10.f; // +-10V
+		outBufferSaturator[0] = out[0];
+		outBufferSaturator[1] = out[1];
+
+		out[0] = outBufferSaturator[2];
+		out[1] = outBufferSaturator[3];
+
 
 		lastOut = out;
 

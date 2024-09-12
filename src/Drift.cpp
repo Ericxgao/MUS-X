@@ -1,5 +1,5 @@
 #include "plugin.hpp"
-#include "dsp/filters.hpp"
+#include "blocks/DriftBlock.hpp"
 
 namespace musx {
 
@@ -32,14 +32,11 @@ struct Drift : Module {
 
 	int channels = 1;
 
-	float_4 diverge[4];
-
-	musx::TOnePole<float_4> lowpass[4];
-
 	dsp::ClockDivider divider;
 
+	musx::DriftBlock driftBlock[4];
+
 	float lastRateParam = -1.f;
-	float driftScale = 1.f;
 
 	float prevRandomizeValue = 0.f;
 
@@ -55,18 +52,18 @@ struct Drift : Module {
 
 		divider.setDivision(clockDivider);
 
+		for (int c = 0; c < 16; c += 4) {
+			driftBlock[c/4].setSampleRateReduction(clockDivider);
+		}
+
 		randomizeDiverge();
 	}
 
 	void randomizeDiverge()
 	{
-		for (int c = 0; c < 4; c += 1) {
-			diverge[c][0] = rack::random::get<float>() - 0.5f;
-			diverge[c][1] = rack::random::get<float>() - 0.5f;
-			diverge[c][2] = rack::random::get<float>() - 0.5f;
-			diverge[c][3] = rack::random::get<float>() - 0.5f;
-
-			diverge[c] *= 10.f; // +-5V
+		for (int c = 0; c < 16; c += 4)
+		{
+			driftBlock[c/4].randomizeDiverge();
 		}
 	}
 
@@ -86,38 +83,27 @@ struct Drift : Module {
 			// update filter frequency
 			if (params[RATE_PARAM].getValue() != lastRateParam)
 			{
-				for (int c = 0; c < 16; c += 4) {
-					float cutoffFreq = simd::pow(base, params[RATE_PARAM].getValue()) * minFreq / args.sampleRate * clockDivider;
-
-					driftScale = std::exp(-1.2f * std::log10(cutoffFreq*48000 / divider.getDivision())) * 128.f + 7.f;
-
-					lowpass[c/4].setCutoffFreq(cutoffFreq);
-					lowpass[c/4].tmp = simd::clamp(lowpass[c/4].tmp, -5.f/driftScale, 5.f/driftScale);
-
+				for (int c = 0; c < channels; c += 4) {
+					driftBlock[c/4].setFilterFrequencyV(params[RATE_PARAM].getValue());
 					lastRateParam = params[RATE_PARAM].getValue();
 				}
 			}
 
-			for (int c = 0; c < channels; c += 4) {
-				float_4 rn = {rack::random::get<float>() - 0.5f,
-						   	  rack::random::get<float>() - 0.5f,
-							  rack::random::get<float>() - 0.5f,
-							  rack::random::get<float>() - 0.5f};
-
-				lowpass[c/4].process(rn);
-				float_4 drift = lowpass[c/4].lowpass();
-
-				outputs[OUT_OUTPUT].setVoltageSimd(simd::clamp(
-						params[CONST_PARAM].getValue() * params[CONST_PARAM].getValue() * diverge[c/4] +
-						params[DRIFT_PARAM].getValue() * params[DRIFT_PARAM].getValue() * driftScale * drift,
-						-10.f, 10.f),
-						c);
+			for (int c = 0; c < channels; c += 4)
+			{
+				driftBlock[c/4].setDivergeAmount(params[CONST_PARAM].getValue() * params[CONST_PARAM].getValue());
+				driftBlock[c/4].setDriftAmount(params[DRIFT_PARAM].getValue() * params[DRIFT_PARAM].getValue());
+				outputs[OUT_OUTPUT].setVoltageSimd(driftBlock[c/4].process(), c);
 			}
 		}
 	}
 
 	void onSampleRateChange(const SampleRateChangeEvent& e) override {
 		lastRateParam = -1.f;
+
+		for (int c = 0; c < 16; c += 4) {
+			driftBlock[c/4].setSampleRate(e.sampleRate);
+		}
 	}
 
 	json_t* dataToJson() override {
@@ -125,7 +111,7 @@ struct Drift : Module {
 		json_t* divergeJ = json_array();
 		for (int i = 0; i < 16; i++)
 		{
-			json_array_insert_new(divergeJ, i, json_real(diverge[i/4][i%4]));
+			json_array_insert_new(divergeJ, i, json_real(driftBlock[i/4].getDiverge()[i%4]));
 		}
 		json_object_set_new(rootJ, "diverge", divergeJ);
 		return rootJ;
@@ -135,12 +121,14 @@ struct Drift : Module {
 		json_t* divergesJ = json_object_get(rootJ, "diverge");
 		if (divergesJ)
 		{
+			float_4 diverge = {0.f};
 			for (int i = 0; i < 16; i++)
 			{
 				json_t* divergeJ = json_array_get(divergesJ, i);
 				if (divergeJ)
 				{
-					diverge[i/4][i%4] = json_real_value(divergeJ);
+					diverge[i%4] = json_real_value(divergeJ);
+					driftBlock[i/4].setDiverge(diverge);
 				}
 			}
 		}

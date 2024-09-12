@@ -137,7 +137,7 @@
     {
       "slug": "SplitStack",
       "name": "Split/Stack",
-      "description": "Helper for splitting or layering two synthesizer parts",
+      "description": "Utility for splitting or layering two synthesizer parts",
       "tags": [
         "Utility"
       ]

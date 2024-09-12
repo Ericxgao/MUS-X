@@ -297,7 +297,11 @@ struct SplitStackWidget : ModuleWidget {
 
 			// Generate your text
 			std::string text = "";
-			float splitPointVOct = getModule<SplitStack>()->splitPoint;
+			float splitPointVOct = 0.f;
+			if (getModule<SplitStack>())
+			{
+				splitPointVOct = getModule<SplitStack>()->splitPoint;
+			}
 
 			// get note
 			switch ((int)((splitPointVOct - floorf(splitPointVOct) + 1.f/24.f) * 12.f))
@@ -344,7 +348,7 @@ struct SplitStackWidget : ModuleWidget {
 			text.append(std::to_string((int)(splitPointVOct + 4 + 1.f/24.f)));
 
 			// Draw the text at a position
-			nvgText(args.vg, 101, 101, text.c_str(), NULL);
+			nvgText(args.vg, 102, 101, text.c_str(), NULL);
 		}
 
 	}

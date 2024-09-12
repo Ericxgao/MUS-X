@@ -138,6 +138,17 @@ With no oversampling, the oscillators alias a lot.
 * 'Saturator' limits the output to around ±10V.
 * 'LFO mode' lets you use the module as an LFO. It lowers the frequencies of the oscillators to 2 Hz @ 0V, and internally disables oversampling and the DC blocker.
 
+## Spit/Stack
+A utility for splitting or layering two synthesizer parts.
+
+Connect the inputs to the corresponding ports of e.g. a [MIDI to CV](https://library.vcvrack.com/Core/MIDIToCVInterface) module, and the outputs of parts A and B two any modules.
+
+If no buttons are active, only part A is played, part B is "disconnected" by setting the number of channels to 0. If "Stack A+B" is activated, both part A and part B play the exact same notes.
+If "Split A|B" is activated, part A plays notes below the split point, part B plays notes at and above the split point.
+To set the split point, press and hold "Split A|B" while it is activated, and play a note.
+The note name of the split point is shown in the small display below.
+When "Switch A↔B" is activated, parts A and B are switched.
+
 ## Synth
 A virtual-analogue polyphonic synthesizer with 2 oscillators, dual filters and unique modulation system.
 

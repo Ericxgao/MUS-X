@@ -279,6 +279,75 @@ struct SplitStackWidget : ModuleWidget {
 		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(38.1, 111.473)), module, SplitStack::RETRIG_B_OUTPUT));
 
 	}
+
+	void draw(const DrawArgs& args) override {
+		ModuleWidget::draw(args);
+
+		// Load font from cache
+		std::string fontPath = asset::system("res/fonts/DejaVuSans.ttf");
+		std::shared_ptr<Font> font = APP->window->loadFont(fontPath);
+		// Don't draw text if font failed to load
+		if (font) {
+			// Select font handle
+			nvgFontFaceId(args.vg, font->handle);
+			// Set font size and alignment
+			nvgFontSize(args.vg, 16.0);
+			nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE);
+			nvgFillColor(args.vg, SCHEME_GREEN);
+
+			// Generate your text
+			std::string text = "";
+			float splitPointVOct = getModule<SplitStack>()->splitPoint;
+
+			// get note
+			switch ((int)((splitPointVOct - floorf(splitPointVOct) + 1.f/24.f) * 12.f))
+			{
+			case 0:
+				text.append("C ");
+				break;
+			case 1:
+				text.append("C#");
+				break;
+			case 2:
+				text.append("D ");
+				break;
+			case 3:
+				text.append("Eb");
+				break;
+			case 4:
+				text.append("E ");
+				break;
+			case 5:
+				text.append("F ");
+				break;
+			case 6:
+				text.append("F#");
+				break;
+			case 7:
+				text.append("G ");
+				break;
+			case 8:
+				text.append("G#");
+				break;
+			case 9:
+				text.append("A ");
+				break;
+			case 10:
+				text.append("Bb");
+				break;
+			case 11:
+				text.append("B ");
+				break;
+			}
+
+			// get octave
+			text.append(std::to_string((int)(splitPointVOct + 4 + 1.f/24.f)));
+
+			// Draw the text at a position
+			nvgText(args.vg, 101, 101, text.c_str(), NULL);
+		}
+
+	}
 };
 
 

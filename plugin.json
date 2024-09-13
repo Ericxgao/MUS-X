@@ -140,7 +140,8 @@
       "description": "Utility for splitting or layering two synthesizer parts",
       "tags": [
         "Utility"
-      ]
+      ],
+	  "manualUrl": "https://github.com/Jojosito/MUS-X#spitstack"
     }
   ]
 }

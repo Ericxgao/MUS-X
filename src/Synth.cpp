@@ -193,7 +193,8 @@ struct Synth : ModuleWithCustomParamContextMenu {
 	// over/-undersampling, quality
 	int lockQualitySettings = -1;
 	static const size_t maxOversamplingRate = 16;
-	size_t oversamplingRate = 8;
+	size_t oversamplingRate = 1;
+	size_t newOversamplingRate = 8;
 	size_t sampleRate = 48000;
 
 	HalfBandDecimatorCascade<float_4> decimator;
@@ -974,6 +975,22 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			}
 		}
 
+		if (newOversamplingRate != oversamplingRate)
+		{
+			oversamplingRate = newOversamplingRate;
+			decimator.reset();
+
+			for (int c = 0; c < 16; c += 4) {
+				oscillators[c/4].setOversamplingRate(oversamplingRate);
+
+				dcBlocker1[c/4].setCutoffFreq(20.f/sampleRate/oversamplingRate);
+				aliasFilter1[c/4].setCutoffFreq(18000.f/sampleRate/oversamplingRate);
+
+				dcBlocker2[c/4].setCutoffFreq(20.f/sampleRate/oversamplingRate);
+				aliasFilter2[c/4].setCutoffFreq(18000.f/sampleRate/oversamplingRate);
+			}
+		}
+
 		// update mod matrix elements
 		for (size_t i = 0; i < nDestinations - 2 * nMixChannels; i++)
 		{
@@ -1155,19 +1172,8 @@ struct Synth : ModuleWithCustomParamContextMenu {
 
 	void setOversamplingRate(size_t arg)
 	{
-		oversamplingRate = arg;
-
-		for (int c = 0; c < 16; c += 4) {
-			oscillators[c/4].setOversamplingRate(oversamplingRate);
-
-			dcBlocker1[c/4].setCutoffFreq(20.f/sampleRate/oversamplingRate);
-			aliasFilter1[c/4].setCutoffFreq(18000.f/sampleRate/oversamplingRate);
-
-			dcBlocker2[c/4].setCutoffFreq(20.f/sampleRate/oversamplingRate);
-			aliasFilter2[c/4].setCutoffFreq(18000.f/sampleRate/oversamplingRate);
-
-			decimator.reset();
-		}
+		newOversamplingRate = arg;
+		// set later in audio thread
 	}
 
 	void setModSampleRateReduction(size_t arg)
@@ -1285,8 +1291,6 @@ struct Synth : ModuleWithCustomParamContextMenu {
 	}
 
 	void process(const ProcessArgs& args) override {
-
-		size_t currentOversamplingRate = oversamplingRate;
 
 		if (uiDivider.process())
 		{
@@ -1470,27 +1474,27 @@ struct Synth : ModuleWithCustomParamContextMenu {
 				{
 				case 0: // individual
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 					break;
 				case 1: // offset
 					filterFrequency = simd::exp(filterLogBase * 0.1f * modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4]) - 5.f;
 					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
@@ -1498,14 +1502,14 @@ struct Synth : ModuleWithCustomParamContextMenu {
 				case 2: // space
 					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter1[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER1_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
 
 					filterFrequency = modMatrixOutputs[FILTER1_CUTOFF_PARAM - ENV1_A_PARAM][c/4] + (modMatrixOutputs[FILTER2_CUTOFF_PARAM - ENV1_A_PARAM][c/4] - 5.f);
 					filterFrequency = simd::exp(filterLogBase * 0.1f * filterFrequency) * filterMinFreq;
-					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * currentOversamplingRate * 0.18f));
+					filterFrequency = simd::clamp(filterFrequency, filterMinFreq, simd::fmin(2.f * filterMaxFreq, args.sampleRate * oversamplingRate * 0.18f));
 					filter2[c/4].setCutoffFrequencyAndResonance(
 							filterFrequency,
 							0.5f * modMatrixOutputs[FILTER2_RESONANCE_PARAM - ENV1_A_PARAM][c/4]);
@@ -1520,13 +1524,13 @@ struct Synth : ModuleWithCustomParamContextMenu {
 		// process audio
 		//
 
-		float_4* bufferLR = decimator.getInputArray(currentOversamplingRate);
-		std::memset(bufferLR, 0, currentOversamplingRate * sizeof(float_4));
+		float_4* bufferLR = decimator.getInputArray(oversamplingRate);
+		std::memset(bufferLR, 0, oversamplingRate * sizeof(float_4));
 
 		for (int c = 0; c < channels; c += 4)
 		{
-			float_4 buffer1[currentOversamplingRate];
-			float_4 buffer2[currentOversamplingRate];
+			float_4 buffer1[oversamplingRate];
+			float_4 buffer2[oversamplingRate];
 
 			// oscillators
 			oscillators[c/4].processBandlimited(buffer1, buffer2);
@@ -1536,11 +1540,11 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			if (inputs[EXT_INPUT].isConnected())
 			{
 				float_4 extIn = inputs[EXT_INPUT].getPolyVoltageSimd<float_4>(c);
-				for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+				for (size_t iSample = 0; iSample < oversamplingRate; iSample++)
 				{
 					// linear interpolation upsampling
-					buffer1[iSample] += extVol1[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
-					buffer2[iSample] += extVol2[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/currentOversamplingRate);
+					buffer1[iSample] += extVol1[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/oversamplingRate);
+					buffer2[iSample] += extVol2[c/4] * crossfade(lastExtIn[c/4], extIn, (iSample + 1.f)/oversamplingRate);
 
 					buffer1[iSample] *= 2.f;
 					buffer2[iSample] *= 2.f;
@@ -1552,7 +1556,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			}
 			else
 			{
-				for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+				for (size_t iSample = 0; iSample < oversamplingRate; iSample++)
 				{
 					buffer1[iSample] += extVol1[c/4] * (delayBuffer1[c/4][iSample] + delayBuffer2[c/4][iSample]);
 					buffer2[iSample] += extVol2[c/4] * (delayBuffer1[c/4][iSample] + delayBuffer2[c/4][iSample]);
@@ -1563,28 +1567,28 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			}
 
 			// process filter 1
-			dcBlocker1[c/4].processHighpassBlock(buffer1, currentOversamplingRate);
-			aliasFilter1[c/4].processLowpassBlock(buffer1, currentOversamplingRate);
-			filter1[c/4].processBlock(buffer1, args.sampleTime / currentOversamplingRate, currentOversamplingRate);
-			saturator1[c/4].processBlockBandlimited(buffer1, currentOversamplingRate);
+			dcBlocker1[c/4].processHighpassBlock(buffer1, oversamplingRate);
+			aliasFilter1[c/4].processLowpassBlock(buffer1, oversamplingRate);
+			filter1[c/4].processBlock(buffer1, args.sampleTime / oversamplingRate, oversamplingRate);
+			saturator1[c/4].processBlockBandlimited(buffer1, oversamplingRate);
 
 			// serial routing
 			float_4 serPar = clamp(0.2f * modMatrixOutputs[FILTER_SERIAL_PARALLEL_PARAM - ENV1_A_PARAM][c/4] - 1.f, -1.f, 1.f);
 			float_4 serial = 0.5f - 0.5f * serPar; // [1..0]
-			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+			for (size_t iSample = 0; iSample < oversamplingRate; iSample++)
 			{
 				delayBuffer2[c/4][iSample] += serial * buffer1[iSample];
 			}
 
 			// process filter 2
-			dcBlocker2[c/4].processHighpassBlock(delayBuffer2[c/4], currentOversamplingRate);
-			aliasFilter2[c/4].processLowpassBlock(delayBuffer2[c/4], currentOversamplingRate);
-			filter2[c/4].processBlock(delayBuffer2[c/4], args.sampleTime / currentOversamplingRate, currentOversamplingRate);
-			saturator2[c/4].processBlockBandlimited(delayBuffer2[c/4], currentOversamplingRate);
+			dcBlocker2[c/4].processHighpassBlock(delayBuffer2[c/4], oversamplingRate);
+			aliasFilter2[c/4].processLowpassBlock(delayBuffer2[c/4], oversamplingRate);
+			filter2[c/4].processBlock(delayBuffer2[c/4], args.sampleTime / oversamplingRate, oversamplingRate);
+			saturator2[c/4].processBlockBandlimited(delayBuffer2[c/4], oversamplingRate);
 
 			// parallel routing
 			float_4 parallel = 0.5f + 0.5f * serPar; // [0..1]
-			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+			for (size_t iSample = 0; iSample < oversamplingRate; iSample++)
 			{
 				buffer1[iSample] *= parallel;
 			}
@@ -1597,7 +1601,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 			float_4 vol1R = panGetVolR<float_4>(pan1);
 			float_4 vol2L = panGetVolL<float_4>(pan2);
 			float_4 vol2R = panGetVolR<float_4>(pan2);
-			for (size_t iSample = 0; iSample < currentOversamplingRate; iSample++)
+			for (size_t iSample = 0; iSample < oversamplingRate; iSample++)
 			{
 				// amp
 				delayBuffer1[c/4][iSample] *= 0.1f * modMatrixOutputs[AMP_VOL_PARAM - ENV1_A_PARAM][c/4];
@@ -1619,7 +1623,7 @@ struct Synth : ModuleWithCustomParamContextMenu {
 		}
 
 		// downsampling
-		float_4 outLR = decimator.process(currentOversamplingRate);
+		float_4 outLR = decimator.process(oversamplingRate);
 
 		outputs[OUT_L_OUTPUT].setVoltage(outLR[0]);
 		outputs[OUT_R_OUTPUT].setVoltage(outLR[1]);

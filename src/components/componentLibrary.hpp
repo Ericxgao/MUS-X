@@ -44,7 +44,7 @@ public:
 	void draw(const DrawArgs& args) override
 	{
 		RoundBlackKnob::draw(args);
-		drawBg(args, nvgRGB(32, 32, 32));
+		drawBg(args, nvgRGB(48, 48, 48));
 	}
 
 	void drawLayer(const DrawArgs& args, int layer) override

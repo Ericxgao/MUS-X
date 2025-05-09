@@ -36,7 +36,11 @@ struct Filter : Module {
 	const float logBase = std::log(base);
 
 	static const int maxOversamplingRate = 64;
+	#ifdef METAMODULE
+	int oversamplingRate = 2;
+	#else
 	int oversamplingRate = 4;
+	#endif
 	HalfBandDecimatorCascade<float_4> decimator[4];
 
 	int channels = 1;
